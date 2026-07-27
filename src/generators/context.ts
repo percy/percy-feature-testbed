@@ -42,6 +42,11 @@ export function noncedBranch(branch: string, nonce: string): string {
   return `${branch}-${nonce}`;
 }
 
+/** Resolve a snapshot YAML path inside the percy_playwright upstream (in place). */
+export function snapshotPath(profile: ResolvedProfile, relative: string): string {
+  return `${profile.upstream.percyPlaywright}/${relative}`;
+}
+
 export interface WebCaptureOpts {
   /** capture.js inline-HTML path (hardcoded snapshot names — no nonce possible) */
   diffMode?: string;
