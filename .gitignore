@@ -1,0 +1,15 @@
+node_modules/
+dist/
+*.log
+
+# Secrets & sensitive artifacts — never commit (plan R2a + security review).
+# Only the *.example.js templates are tracked; real profiles carry secret refs.
+profiles/*.js
+!profiles/*.example.js
+
+# Phase-0 validation notes may capture live tokens during the spike — keep local.
+docs/phase0-validation-notes.md
+
+tmp/
+.env
+.env.*

@@ -1,0 +1,25 @@
+{
+  "name": "percy-feature-testbed",
+  "version": "0.0.1",
+  "description": "One-command seeder that populates a Percy environment with real renderer-backed builds exercising every Percy feature, for manual QA.",
+  "type": "module",
+  "bin": {
+    "seed-testbed": "dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "cli": "tsx src/main.ts",
+    "test": "node --import tsx --test src/*.test.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  },
+  "license": "UNLICENSED",
+  "private": true
+}
