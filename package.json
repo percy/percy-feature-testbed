@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc",
     "cli": "tsx src/main.ts",
-    "test": "node --import tsx --test src/*.test.ts",
+    "test": "find src -name '*.test.ts' -print0 | xargs -0 node --import tsx --test",
     "typecheck": "tsc --noEmit"
   },
   "engines": {
