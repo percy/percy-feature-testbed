@@ -38,7 +38,7 @@ export async function provisionProject(
   assertSafeName(projectName);
   const { id, slug } = await projectApi.createProject(projectName, type);
   const writeToken = await projectApi.fetchProjectToken(id, 'write_only');
-  const readToken = await projectApi.fetchProjectToken(id, 'read');
+  const readToken = await projectApi.fetchProjectToken(id, 'read_only');
   const teamId = slug.includes('/') ? slug.split('/')[0] : undefined;
   return { id, slug, teamId, writeToken, readToken };
 }

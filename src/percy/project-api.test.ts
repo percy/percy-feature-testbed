@@ -29,22 +29,22 @@ test('setAutoApprove PATCHes /projects/{slug} with the branch filter (Basic auth
   assert.equal((calls[0].body as any).data.attributes.auto_approve_branch_filter, 'auto/*');
 });
 
-test('fetchProjectToken returns the matching-role token', async () => {
+test('fetchProjectToken returns the matching-role token (read_only)', async () => {
   const { http } = recorder([
     okJson({
       data: [
         { attributes: { role: 'write_only', token: 'w1' } },
-        { attributes: { role: 'read', token: 'r1' } },
+        { attributes: { role: 'read_only', token: 'r1' } },
       ],
     }),
   ]);
-  assert.equal(await createProjectApi(makeProfile(), http).fetchProjectToken('42', 'read'), 'r1');
+  assert.equal(await createProjectApi(makeProfile(), http).fetchProjectToken('42', 'read_only'), 'r1');
 });
 
 test('fetchProjectToken throws (with UI hint) when the role is absent', async () => {
   const { http } = recorder([okJson({ data: [{ attributes: { role: 'write_only', token: 'w1' } }] })]);
   await assert.rejects(
-    () => createProjectApi(makeProfile(), http).fetchProjectToken('42', 'read'),
-    /No "read" token/,
+    () => createProjectApi(makeProfile(), http).fetchProjectToken('42', 'read_only'),
+    /No "read_only" token/,
   );
 });

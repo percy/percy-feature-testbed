@@ -11,7 +11,7 @@ test('provisionProject creates a project then fetches write + read tokens', asyn
     return okJson({
       data: [
         { attributes: { role: 'write_only', token: 'w' } },
-        { attributes: { role: 'read', token: 'r' } },
+        { attributes: { role: 'read_only', token: 'r' } },
       ],
     });
   });

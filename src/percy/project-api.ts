@@ -16,7 +16,8 @@ import type { ResolvedProfile } from '../profile/schema';
 import { basicAuthHeaders } from './auth';
 
 export type ProjectType = 'web' | 'app';
-export type ProjectTokenRole = 'write_only' | 'read' | 'full_access';
+// Verified live against percy.io: the tokens endpoint returns these role names.
+export type ProjectTokenRole = 'write_only' | 'read_only' | 'master' | 'full_access';
 
 export interface ProjectApi {
   createProject(name: string, type?: ProjectType): Promise<{ id: string; slug: string }>;
