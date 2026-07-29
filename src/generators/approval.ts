@@ -2,13 +2,7 @@
  * Approval automation (plan R13): auto-finalization + supersede (Unit 5) and the
  * net-new auto-approve generator (Unit 6).
  */
-import {
-  captureWeb,
-  noncedBranch,
-  snapshotPath,
-  type GeneratorContext,
-  type GeneratedBuild,
-} from './context';
+import { captureWeb, noncedBranch, type GeneratorContext, type GeneratedBuild } from './context';
 
 /** Auto-finalization (R13): a normal finished build. */
 export async function generateAutoFinalization(ctx: GeneratorContext): Promise<GeneratedBuild[]> {
@@ -24,11 +18,10 @@ export async function generateAutoFinalization(ctx: GeneratorContext): Promise<G
  */
 export async function generateSupersede(ctx: GeneratorContext): Promise<GeneratedBuild[]> {
   const branch = noncedBranch('supersede', ctx.nonce);
-  const yml = snapshotPath(ctx.profile, 'snapshots_list/supersede_snapshots.yml');
 
-  const first = await captureWeb(ctx, { snapshotFile: yml, branch, skipCache: true });
+  const first = await captureWeb(ctx, { diffMode: 'changed', branch, skipCache: true });
   await ctx.buildApi.waitForBuildFinished(first.id, ctx.project.readToken);
-  const second = await captureWeb(ctx, { snapshotFile: yml, branch, skipCache: true });
+  const second = await captureWeb(ctx, { diffMode: 'changed', branch, skipCache: true });
   await ctx.buildApi.waitForBuildFinished(second.id, ctx.project.readToken);
 
   return [

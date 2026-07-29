@@ -1,26 +1,19 @@
 /**
- * Regions (plan Unit 5, R14): ignore/snapshot-region builds using the upstream
- * regions fixture pair. Baseline approved, then a diff build.
+ * Regions (plan Unit 5, R14). Approved baseline + a changed build. NOTE: on the
+ * image-upload path, region ignore/snapshot config is NOT applied (that needs the
+ * SDK/snapshot-config path); this produces the diff build but not configured regions.
  */
-import {
-  captureWeb,
-  noncedBranch,
-  snapshotPath,
-  type GeneratorContext,
-  type GeneratedBuild,
-} from './context';
+import { captureWeb, noncedBranch, type GeneratorContext, type GeneratedBuild } from './context';
 
 export async function generateRegions(ctx: GeneratorContext): Promise<GeneratedBuild[]> {
   const master = noncedBranch('master', ctx.nonce);
-  const baseYml = snapshotPath(ctx.profile, 'snapshots_list/regions_baseline.yml');
-  const diffYml = snapshotPath(ctx.profile, 'snapshots_list/regions_diff.yml');
 
-  const baseline = await captureWeb(ctx, { snapshotFile: baseYml, branch: master });
+  const baseline = await captureWeb(ctx, { diffMode: 'baseline', branch: master });
   await ctx.buildApi.waitForBuildFinished(baseline.id, ctx.project.readToken);
   await ctx.buildApi.reviewBuild(baseline.id, 'approve');
 
   const changed = await captureWeb(ctx, {
-    snapshotFile: diffYml,
+    diffMode: 'changed',
     branch: noncedBranch('regions-diff', ctx.nonce),
     targetBranch: master,
   });
@@ -30,7 +23,7 @@ export async function generateRegions(ctx: GeneratorContext): Promise<GeneratedB
     {
       feature: 'regions',
       requirement: 'R14',
-      label: 'regions: ignore/snapshot regions diff',
+      label: 'regions (diff build; region config not applied on the upload path)',
       buildId: changed.id,
       buildUrl: changed.url,
     },
