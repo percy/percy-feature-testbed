@@ -14,7 +14,8 @@ import type { BuildApi } from '../percy/build-api';
 export interface SeededProject {
   id: string;
   slug: string;
-  teamId: string;
+  /** org/team id, when derivable from the full-slug (e.g. "orgid/proj") — optional */
+  teamId?: string;
   writeToken: string;
   readToken: string;
 }

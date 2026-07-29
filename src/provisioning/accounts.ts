@@ -10,7 +10,7 @@
  * is a Phase-0 confirmation item (see plan Open Questions).
  */
 import type { Runner } from '../exec';
-import type { ProjectApi } from '../percy/project-api';
+import type { ProjectApi, ProjectType } from '../percy/project-api';
 import type { SeededProject } from '../generators/context';
 import { assertSafeName } from '../preconditions';
 
@@ -25,15 +25,20 @@ export async function runLocalSeedRake(runner: Runner, tier?: string): Promise<v
   }
 }
 
-/** Create a project in an org and fetch its write + read tokens. */
+/**
+ * Create a project (via the account's Basic-auth creds) and fetch its write + read
+ * tokens — the user-requested flow: create project -> fetch token -> (build elsewhere).
+ * teamId is derived from the full-slug prefix when present (e.g. "orgid/proj").
+ */
 export async function provisionProject(
   projectApi: ProjectApi,
-  teamId: string,
   projectName: string,
+  type: ProjectType = 'web',
 ): Promise<SeededProject> {
   assertSafeName(projectName);
-  const { id, slug } = await projectApi.createProject(teamId, projectName);
+  const { id, slug } = await projectApi.createProject(projectName, type);
   const writeToken = await projectApi.fetchProjectToken(id, 'write_only');
   const readToken = await projectApi.fetchProjectToken(id, 'read');
+  const teamId = slug.includes('/') ? slug.split('/')[0] : undefined;
   return { id, slug, teamId, writeToken, readToken };
 }

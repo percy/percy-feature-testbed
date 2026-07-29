@@ -52,7 +52,7 @@ export async function generateAutoApprove(ctx: GeneratorContext): Promise<Genera
   const out: GeneratedBuild[] = [];
   const prefix = 'auto-approved';
 
-  await ctx.projectApi.setAutoApprove(ctx.project.teamId, ctx.project.slug, `${prefix}/*`);
+  await ctx.projectApi.setAutoApprove(ctx.project.slug, `${prefix}/*`);
 
   const matching = await captureWeb(ctx, { diffMode: 'changed', branch: noncedBranch(`${prefix}/x`, ctx.nonce) });
   const matchState = await ctx.buildApi.waitForBuildFinished(matching.id, ctx.project.readToken);

@@ -13,6 +13,7 @@ import { fetchHttpClient } from './http';
 import { spawnRunner } from './exec';
 import { createProjectApi } from './percy/project-api';
 import { createBuildApi } from './percy/build-api';
+import { provisionProject } from './provisioning/accounts';
 import { orchestrate, type OrchestratorDeps } from './orchestrator';
 import { formatRunSummary } from './report';
 
@@ -27,15 +28,11 @@ export async function realDispatch(config: CliConfig): Promise<void> {
     buildApi,
     runner: spawnRunner,
     nonce: profile.nonceSeed,
-    provisionProject: async (tier) => {
-      // Phase-0 must define how a per-tier org id + user principal + tokens are obtained
-      // on the target env (the dev-only rake cannot run on shared envs). See plan Unit 8.
-      throw new Error(
-        `provisionProject("${tier}") is not wired for live runs yet — resolving the per-tier ` +
-          'org id + user principal + project tokens on the target env is the Phase-0 deferred item. ' +
-          'Run Unit 0 validation first (see docs/plans/2026-07-27-001-...-plan.md).',
-      );
-    },
+    // Real provisioning (public Percy flow): create a project via the account's
+    // Basic-auth creds, then fetch its write + read tokens. One project per tier.
+    // NOTE: fetchProjectToken is not fully public-documented — validate on first run.
+    provisionProject: (tier) =>
+      provisionProject(projectApi, `testbed-${tier}-${profile.nonceSeed}`, 'web'),
   };
 
   const result = await orchestrate(config, deps);

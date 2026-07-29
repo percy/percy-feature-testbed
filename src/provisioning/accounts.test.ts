@@ -5,9 +5,9 @@ import { createProjectApi } from '../percy/project-api';
 import { makeProfile, recorder, okJson } from '../testing/fakes';
 import type { Runner } from '../exec';
 
-test('provisionProject creates a project and fetches write + read tokens', async () => {
+test('provisionProject creates a project then fetches write + read tokens', async () => {
   const { http, calls } = recorder((req) => {
-    if (req.method === 'POST') return okJson({ data: { id: '7', attributes: { slug: 'seed-paid-web' } } });
+    if (req.method === 'POST') return okJson({ data: { id: '7', attributes: { slug: 'org9/seed-web' } } });
     return okJson({
       data: [
         { attributes: { role: 'write_only', token: 'w' } },
@@ -15,15 +15,20 @@ test('provisionProject creates a project and fetches write + read tokens', async
       ],
     });
   });
-  const sp = await provisionProject(createProjectApi(makeProfile(), http), 'team-1', 'seed-paid-web');
-  assert.deepEqual(sp, { id: '7', slug: 'seed-paid-web', teamId: 'team-1', writeToken: 'w', readToken: 'r' });
-  assert.equal(calls[0].method, 'POST');
+  const sp = await provisionProject(createProjectApi(makeProfile(), http), 'seed-web');
+  assert.equal(sp.id, '7');
+  assert.equal(sp.slug, 'org9/seed-web');
+  assert.equal(sp.writeToken, 'w');
+  assert.equal(sp.readToken, 'r');
+  assert.equal(sp.teamId, 'org9'); // derived from the full-slug prefix
+  assert.equal(calls[0].method, 'POST'); // create first
+  assert.equal(calls[0].url, 'https://canary.percy.io/api/v1/projects');
 });
 
-test('provisionProject rejects a reserved project name', async () => {
+test('provisionProject rejects a reserved project name before creating', async () => {
   const { http } = recorder([okJson({})]);
   await assert.rejects(
-    () => provisionProject(createProjectApi(makeProfile(), http), 'team-1', 'canary-seed'),
+    () => provisionProject(createProjectApi(makeProfile(), http), 'canary-seed'),
     /reserved/,
   );
 });
