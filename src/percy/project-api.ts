@@ -52,7 +52,9 @@ export function createProjectApi(profile: ResolvedProfile, http: HttpClient): Pr
       });
       if (!res.ok) throw new Error(`createProject failed (${res.status}): ${res.text}`);
       const data = (res.body as any)?.data;
-      const slug = data?.attributes?.slug ?? data?.attributes?.['full-slug'] ?? name;
+      // Verified live: token/edit endpoints are addressed by the FULL-slug
+      // ("orgSlug/projectSlug"), e.g. /api/v1/projects/9560f98d/proj/tokens.
+      const slug = data?.attributes?.['full-slug'] ?? data?.attributes?.slug ?? name;
       return { id: String(data?.id), slug: String(slug) };
     },
 
