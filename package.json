@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=18.19"
   },
   "dependencies": {
     "@percy/cli": "^1.32.4"
