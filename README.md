@@ -1,80 +1,144 @@
 # percy-feature-testbed
 
-One command that populates a Percy environment with **real renderer-backed** builds
-exercising **every Percy feature** — for manual QA. A human then logs into the
-pre-populated accounts and inspects each feature in the dashboard.
+One command that seeds a Percy environment with **real builds of every kind** —
+baseline / changed / new / removed, visual-git / A-B, recurring diff, AI, regions,
+approval automation — so QA can log in and inspect each feature in the dashboard.
 
+The flow, proven end-to-end against Percy: **create a project → fetch its token →
+create builds** (via `percy upload` of static images — no browser needed).
+
+---
+
+## Prerequisites
+
+- **Node ≥ 18.19** and npm.
+- A **BrowserStack username + access key** for the account whose Percy org you want to
+  seed (this is the Basic-auth credential Percy's API uses to create projects — there is
+  no bearer "user token" for project creation).
+- A **non-production** target Percy environment (`local` / `staging` / `canary`). The CLI
+  **refuses production by design** — to seed a prod project, use the manual recipe below.
+
+```bash
+npm install
 ```
-seed-testbed --profile <local|staging|canary> [--only <feature|tier>]
+
+---
+
+## Run it (the CLI)
+
+```bash
+# 1. Make a profile for your target env (copy the example, keep secrets out of it)
+cp profiles/canary.example.js profiles/canary.js     # edit baseUrl if needed
+
+# 2. Export the credentials the profile references (never commit these)
+export BROWSERSTACK_USERNAME=<your-bs-username>
+export BROWSERSTACK_ACCESS_KEY=<your-bs-access-key>
+
+# 3. Run — full pass: a project per account tier, each with the build-type spread
+npm run cli -- --profile canary
+#   or, after `npm run build`:  seed-testbed --profile canary
 ```
 
-- Full pass (default): creates orgs/projects and builds across the account matrix
-  (free / paid / ent_global / ent_team / ai_off) for Web + App Percy, covering core
-  review states, visual-git / A-B, recurring diff, AI, approval automation, and regions.
-- `--only <feature|tier>`: a **coarse** filter for cheap retry/debug — one feature or
-  one tier. (It is *not* a per-scenario catalog.)
+On completion it prints a **run summary**: each build labeled with the feature it
+demonstrates + a dashboard deep-link.
 
-**Design & plan:** `../docs/plans/2026-07-27-001-feat-percy-feature-testbed-plan.md`
-(origin brainstorm: `../docs/brainstorms/2026-07-27-percy-feature-testbed-requirements.md`).
+### Scope it down with `--only`
 
-> **Status: scaffold only (plan Unit 1).** The CLI parses and routes; the orchestrator
-> and generators are not built yet. This is **not** a thin wrapper over proven parts —
-> the capture path is an unrun upstream scaffold, auto-approve is net-new, and the
-> shared-env credential/provisioning path is unvalidated. A **Phase-0 validation**
-> (plan Unit 0) must precede the capture units, and it needs live credentials
-> (see below).
+```bash
+seed-testbed --profile canary --only paid            # all features, just the "paid" tier
+seed-testbed --profile canary --only recurring-diff  # one feature, across all tiers
+```
 
-## `--only` keys
+- **Features:** `core`, `visual-git`, `recurring-diff`, `ai`, `approval`, `regions`, `app-percy`
+- **Tiers:** `free`, `paid`, `ent_global`, `ent_team`, `ai_off`
 
-| Features | Tiers |
+---
+
+## What gets created
+
+| Build type | How it's produced |
 |---|---|
-| `core`, `visual-git`, `recurring-diff`, `ai`, `approval`, `regions`, `app-percy` | `free`, `paid`, `ent_global`, `ent_team`, `ai_off` |
+| **baseline / unchanged / changed / new / removed** | `percy upload` of a variant image set; `changed` diffs against an approved `master` baseline |
+| **visual-git / A-B** | two branches + `PERCY_TARGET_BRANCH` (variant-A baseline vs variant-B head) |
+| **recurring diff** | two consecutive changed builds vs the master baseline |
+| **approval** | auto-finalization, supersede (same branch + `skipCache`), and auto-approve (sets a branch rule via the project API) |
+| **ai / regions** | build is created, but on the upload path these are **smoke builds** — real AI classification / region config need the SDK/render path (see Limitations) |
 
-## Depends on upstreams (not vendored)
+Every capture always sets `PERCY_CLIENT_API_URL` to the target env — otherwise the Percy
+CLI defaults to `api.percy.io` (prod) and builds land there silently.
 
-The testbed **shells out to** its upstream repos in place — it never copies them, so
-nothing drifts:
+---
 
-- `percy-api-seed-accounts` — the account rake + `capture.js` / `app_capture.py`.
-- `BStackAutomation-vra/percy/percy_playwright` — snapshot YAML + build helpers.
+## How it works
 
-By default these are resolved as **siblings** of this repo (the `~/Desktop/percy` hub).
-Override for non-default checkouts:
+```
+seed-testbed --profile <env>
+  └─ for each account tier:
+       create project   → POST /api/v1/projects            (Basic auth = BS user:key)
+       fetch tokens      → GET  /api/v1/projects/<slug>/tokens   (write_only + read_only)
+       for each feature:
+         write variant images → `npx @percy/cli upload <dir>`  (PERCY_TOKEN=write, branch, target-branch)
+         poll the build to finished (read token), approve the baseline where needed
+  └─ print a feature-labeled run summary
+```
 
-- `PERCY_TESTBED_SEED_ACCOUNTS_DIR`
-- `PERCY_TESTBED_PERCY_PLAYWRIGHT_DIR`
+---
 
-See `src/upstream.ts`.
+## Running against production (manual)
+
+The CLI won't target prod. If you deliberately want to seed a **prod** project (it's real
+customer-facing data — create a clearly-named project and archive it after), run the same
+primitives directly:
+
+```bash
+U=<bs-username>; K=<bs-access-key>
+
+# 1) create a project (org inferred from the creds)
+FS=$(curl -sS -X POST https://percy.io/api/v1/projects -u "$U:$K" \
+      -H 'Content-Type: application/vnd.api+json' \
+      -d '{"data":{"type":"projects","attributes":{"name":"my-testbed","type":"web"}}}' \
+    | python3 -c "import sys,json;print(json.load(sys.stdin)['data']['attributes']['full-slug'])")
+
+# 2) fetch the write token
+WT=$(curl -sS "https://percy.io/api/v1/projects/$FS/tokens" -u "$U:$K" \
+    | python3 -c "import sys,json;print(next(t['attributes']['token'] for t in json.load(sys.stdin)['data'] if t['attributes']['role']=='write_only'))")
+
+# 3) upload images in ./snapshots as a build (add PERCY_TARGET_BRANCH=master for a diff)
+PERCY_TOKEN="$WT" PERCY_CLIENT_API_URL=https://percy.io/api/v1 PERCY_BRANCH=master \
+  npx -y @percy/cli upload ./snapshots
+```
+
+---
 
 ## Profiles & secrets
 
-Each environment is a pluggable profile under `profiles/`. Copy an `*.example.js`
-template to `profiles/<env>.js` and fill in **secret references only** (the names of
-env vars that carry each secret) — never inline tokens/passwords/cookies. Real
-`profiles/*.js` files are gitignored; only the `*.example.js` templates are tracked.
+- Each env is a profile under `profiles/`. Copy an `*.example.js` to `profiles/<env>.js`;
+  fill in **secret references** (env-var names) only — never inline tokens/keys. Real
+  `profiles/*.js` are gitignored; only `*.example.js` templates are tracked.
+- The loader always derives `PERCY_CLIENT_API_URL = <baseUrl>/api/v1` and enforces the
+  **non-prod allow-list** (prod refused; preprod gated).
 
-- Runs only against a **non-prod allow-list** (`local` / `staging` / `canary`);
-  preprod is gated and prod is never a valid target.
-- The loader always injects `PERCY_CLIENT_API_URL = <baseUrl>/api/v1` on captures
-  (unset ⇒ builds silently land on prod).
-- Project mutations, baseline approval, and region/AI ops require a **user-level
-  principal**, not a project token; polling uses a read token. App Percy needs
-  valid **prod-hub** BrowserStack creds + a pre-uploaded `BS_APP_ID`.
+---
 
-## Credentials needed before capture (Phase-0 onward)
+## Limitations (known)
 
-The scaffold needs nothing. Unit 0 (validation) and every capture unit need Percy +
-BrowserStack tokens configured in your shell (`/stack:percy-token-setup`, then restart
-the shell so the exports load), plus access to the target env's renderer.
+- **AI** and **regions** are smoke builds on the `percy upload` path — they create builds
+  but don't exercise the real AI classifier / region config (those need rendered pages via
+  the SDK). Labeled as such in the run summary.
+- **App Percy (mobile)** isn't wired to a working capture yet (needs BrowserStack app +
+  a pre-uploaded `BS_APP_ID`).
+- **Delete:** the public API has no project delete — use `PATCH is-enabled=false` to archive
+  via API, or the Project Settings UI for a permanent delete.
+
+---
 
 ## Development
 
-```
-npm install
-npm test         # node --test via tsx
-npm run typecheck
-npm run cli -- --profile canary --only regions   # prints what it *would* run
-npm run build    # emit dist/ (bin: seed-testbed)
+```bash
+npm test            # 54 unit tests (mocked HTTP + shell — nothing hits the network)
+npm run typecheck   # tsc --noEmit
+npm run build       # emit dist/ (bin: seed-testbed)
 ```
 
-Requires Node ≥ 20.
+Design docs (in the percy hub): `docs/brainstorms/2026-07-27-percy-feature-testbed-requirements.md`
+and `docs/plans/2026-07-27-001-feat-percy-feature-testbed-plan.md`.
