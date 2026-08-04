@@ -9,6 +9,14 @@
   "scripts": {
     "build": "tsc",
     "cli": "tsx src/main.ts",
+    "core": "tsx src/main.ts --profile ${PROFILE:-canary} --only core --tier ${TIER:-paid}",
+    "ab": "tsx src/main.ts --profile ${PROFILE:-canary} --only visual-git --tier ${TIER:-paid}",
+    "recurring-diff": "tsx src/main.ts --profile ${PROFILE:-canary} --only recurring-diff --tier ${TIER:-paid}",
+    "ai": "tsx src/main.ts --profile ${PROFILE:-canary} --only ai --tier ${TIER:-paid}",
+    "regions": "tsx src/main.ts --profile ${PROFILE:-canary} --only regions --tier ${TIER:-paid}",
+    "approval": "tsx src/main.ts --profile ${PROFILE:-canary} --only approval --tier ${TIER:-paid}",
+    "app": "tsx src/main.ts --profile ${PROFILE:-canary} --only app-percy --tier ${TIER:-paid}",
+    "seed:all": "tsx src/main.ts --profile ${PROFILE:-canary}",
     "test": "find src -name '*.test.ts' -print0 | xargs -0 node --import tsx --test",
     "typecheck": "tsc --noEmit"
   },

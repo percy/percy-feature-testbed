@@ -42,15 +42,39 @@ npm run cli -- --profile canary
 On completion it prints a **run summary**: each build labeled with the feature it
 demonstrates + a dashboard deep-link.
 
-### Scope it down with `--only`
+### Scope it down with `--only` / `--tier`
 
 ```bash
-seed-testbed --profile canary --only paid            # all features, just the "paid" tier
-seed-testbed --profile canary --only recurring-diff  # one feature, across all tiers
+seed-testbed --profile canary --only paid                  # all features, just the "paid" tier
+seed-testbed --profile canary --only recurring-diff        # one feature, across all tiers
+seed-testbed --profile canary --only visual-git --tier paid # one feature, one project
 ```
 
 - **Features:** `core`, `visual-git`, `recurring-diff`, `ai`, `approval`, `regions`, `app-percy`
 - **Tiers:** `free`, `paid`, `ent_global`, `ent_team`, `ai_off`
+
+### Per-feature shortcuts
+
+Each feature is a one-liner that seeds just that suite's builds in a **single project**:
+
+| Command | Seeds |
+|---|---|
+| `npm run core` | new / changed / unchanged / removed |
+| `npm run ab` | **A/B** variant comparison (visual-git / target-branch) |
+| `npm run recurring-diff` | recurring diff |
+| `npm run ai` | AI review *(smoke build on the upload path — see Limitations)* |
+| `npm run regions` | regions *(smoke build)* |
+| `npm run approval` | auto-finalization, supersede, auto-approve |
+| `npm run app` | App Percy *(not yet wired)* |
+| `npm run seed:all` | the full matrix (all tiers × all features) |
+
+Each defaults to `--profile canary --tier paid`; override with env vars:
+
+```bash
+PROFILE=staging TIER=free npm run ai
+```
+
+(You still need a `profiles/<env>.js` file and the creds exported — see above.)
 
 ---
 

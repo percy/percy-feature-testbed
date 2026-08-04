@@ -30,6 +30,17 @@ test('selectTiers/selectFeatures honor the --only filter shape', () => {
   assert.equal(selectFeatures('paid').length, 7); // 'paid' is a tier => all features
 });
 
+test('an explicit --tier wins and scopes to a single tier', () => {
+  assert.deepEqual(selectTiers(undefined, 'paid'), ['paid']);
+  assert.deepEqual(selectTiers('visual-git', 'free'), ['free']); // feature via --only, tier via --tier
+});
+
+test('--only <feature> + --tier runs that one feature in one project', async () => {
+  const res = await orchestrate({ profile: 'canary', only: 'visual-git', tier: 'paid' }, makeDeps());
+  assert.ok(res.builds.length > 0);
+  assert.ok(res.builds.every((b) => b.tier === 'paid' && b.feature === 'visual-git'));
+});
+
 test('--only core runs core across every tier', async () => {
   const res = await orchestrate({ profile: 'canary', only: 'core' }, makeDeps());
   assert.equal(res.builds.length, TIERS.length * 2); // 2 builds per tier

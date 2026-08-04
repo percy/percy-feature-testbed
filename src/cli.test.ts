@@ -11,7 +11,7 @@ import {
 // Happy path: profile with no --only means a full pass.
 test('parses --profile with no --only as a full pass', () => {
   const cfg = parseCliArgs(['--profile', 'canary']);
-  assert.deepEqual(cfg, { profile: 'canary', only: undefined });
+  assert.deepEqual(cfg, { profile: 'canary', only: undefined, tier: undefined });
 });
 
 // Verification: routes to dispatch without running a real pass.
@@ -22,7 +22,7 @@ test('run() routes to the injected dispatch and returns the config', async () =>
       received = c;
     },
   });
-  assert.deepEqual(cfg, { profile: 'canary', only: 'regions' });
+  assert.deepEqual(cfg, { profile: 'canary', only: 'regions', tier: undefined });
   assert.deepEqual(received, cfg);
 });
 
@@ -56,4 +56,15 @@ test('unknown flags are rejected', () => {
 test('accepts a valid feature key and a valid tier key for --only', () => {
   assert.equal(parseCliArgs(['--profile', 'canary', '--only', 'regions']).only, 'regions');
   assert.equal(parseCliArgs(['--profile', 'canary', '--only', 'paid']).only, 'paid');
+});
+
+// --tier scopes to one account tier and combines with --only.
+test('accepts a valid --tier and combines with --only', () => {
+  const cfg = parseCliArgs(['--profile', 'canary', '--only', 'visual-git', '--tier', 'paid']);
+  assert.equal(cfg.only, 'visual-git');
+  assert.equal(cfg.tier, 'paid');
+});
+
+test('rejects an unknown --tier', () => {
+  assert.throws(() => parseCliArgs(['--profile', 'canary', '--tier', 'bogus']), UsageError);
 });

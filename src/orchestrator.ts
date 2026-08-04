@@ -78,7 +78,8 @@ export interface OrchestratorDeps {
   nonce: string;
 }
 
-export function selectTiers(only?: CliConfig['only']): TierKey[] {
+export function selectTiers(only?: CliConfig['only'], tier?: TierKey): TierKey[] {
+  if (tier) return [tier];
   if (only && (TIERS as readonly string[]).includes(only)) return [only as TierKey];
   return [...TIERS];
 }
@@ -90,7 +91,7 @@ export function selectFeatures(only?: CliConfig['only']): FeatureDef[] {
 
 export async function orchestrate(config: CliConfig, deps: OrchestratorDeps): Promise<RunResult> {
   const result: RunResult = { builds: [], skipped: [] };
-  const tiers = selectTiers(config.only);
+  const tiers = selectTiers(config.only, config.tier);
   const features = selectFeatures(config.only);
 
   for (const tier of tiers) {

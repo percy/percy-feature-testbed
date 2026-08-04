@@ -39,10 +39,16 @@ export interface CliConfig {
   profile: string;
   /** Optional coarse filter: run a single feature or a single tier. */
   only?: OnlyKey;
+  /** Optional: restrict to a single account tier (one project). Combines with `only`. */
+  tier?: TierKey;
 }
 
 export function usage(): string {
-  return 'Usage: seed-testbed --profile <local|staging|canary> [--only <feature|tier>]';
+  return 'Usage: seed-testbed --profile <local|staging|canary> [--only <feature|tier>] [--tier <tier>]';
+}
+
+function isTier(value: string): value is TierKey {
+  return (TIER_KEYS as readonly string[]).includes(value);
 }
 
 function isKnownOnly(value: string): value is OnlyKey {
@@ -66,6 +72,7 @@ export function parseCliArgs(argv: string[]): CliConfig {
       options: {
         profile: { type: 'string' },
         only: { type: 'string' },
+        tier: { type: 'string' },
       },
       allowPositionals: false,
       strict: true,
@@ -74,7 +81,7 @@ export function parseCliArgs(argv: string[]): CliConfig {
     throw new UsageError((err as Error).message);
   }
 
-  const { profile, only } = parsed.values;
+  const { profile, only, tier } = parsed.values;
 
   if (!profile) {
     throw new UsageError('Missing required --profile <env>.');
@@ -86,8 +93,11 @@ export function parseCliArgs(argv: string[]): CliConfig {
         `Valid tiers: ${TIER_KEYS.join(', ')}.`,
     );
   }
+  if (tier !== undefined && !isTier(tier)) {
+    throw new UsageError(`Unknown --tier "${tier}". Valid tiers: ${TIER_KEYS.join(', ')}.`);
+  }
 
-  return { profile, only: only as OnlyKey | undefined };
+  return { profile, only: only as OnlyKey | undefined, tier: tier as TierKey | undefined };
 }
 
 /** A run dispatcher — injected so the CLI is testable without a real pass. */
