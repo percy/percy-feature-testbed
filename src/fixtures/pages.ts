@@ -35,6 +35,8 @@ export type PageVariant =
   | 'signal'
   | 'noise-signal'
   | 'layout-shift'
+  /** Only the carousel differs — isolates one zone so an ignore test is decisive. */
+  | 'carousel-only'
   /**
    * Classic visual BUGS, for AI bug classification. Percy marks a region
    * `visual_quality: 'irregularity'` with a reason, so the diff has to look like
@@ -150,14 +152,20 @@ function adHtml(a: Ad): string {
  * baseline and head of a given run, so it never registers as a diff itself.
  */
 export function renderStorefront(variant: PageVariant = 'baseline', nonce = ''): string {
-  const noisy = variant === 'noise' || variant === 'noise-signal';
+  // `carousel-only` changes exactly one zone. That is what makes an ignore/region
+  // test decisive: with four zones changed, ignoring one still leaves three, the
+  // snapshot still differs, and the diff count cannot move — so the result is
+  // inconclusive whether the rule worked or not. Isolating the change means
+  // `ignore` on that zone should take the build to zero diffs.
+  const carouselOnly = variant === 'carousel-only';
+  const noisy = variant === 'noise' || variant === 'noise-signal' || carouselOnly;
   const changed = variant === 'signal' || variant === 'noise-signal';
   const bugged = variant === 'visual-bugs';
 
   const car = noisy ? CAROUSEL.b : CAROUSEL.a;
-  const ad = noisy ? AD.b : AD.a;
-  const ban = noisy ? BANNER.b : BANNER.a;
-  const stamp = noisy ? STAMP.b : STAMP.a;
+  const ad = noisy && !carouselOnly ? AD.b : AD.a;
+  const ban = noisy && !carouselOnly ? BANNER.b : BANNER.a;
+  const stamp = noisy && !carouselOnly ? STAMP.b : STAMP.a;
   const prices = changed ? PRICES.b : PRICES.a;
 
   // layout-shift moves the sidebar down without altering a single character of it,

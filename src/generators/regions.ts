@@ -22,26 +22,37 @@ export async function generateRegions(ctx: GeneratorContext): Promise<GeneratedB
 
   const scenarios: Array<{
     key: string;
-    diffMode: 'noise' | 'layout-shift';
+    diffMode: 'noise' | 'layout-shift' | 'carousel-only';
     rules: RegionRule[];
     label: string;
     expectation: string;
   }> = [
+    // The decisive pair. Only the carousel differs, so ignoring it should take the
+    // build to ZERO diffs. With four zones changed the count cannot move regardless
+    // of whether the rule fired, which makes that version of the test unfalsifiable.
+    {
+      key: 'ignore-isolated',
+      diffMode: 'carousel-only',
+      rules: [{ zones: ['carousel'], algorithm: 'ignore' }],
+      label: 'ignore region on the carousel — carousel is the ONLY change',
+      expectation:
+        'ZERO diffs. The carousel is the only thing that changed and it is ignored, so nothing should be flagged. If this build shows diffs, the ignore rule is not being applied.',
+    },
+    {
+      key: 'ignore-isolated-control',
+      diffMode: 'carousel-only',
+      rules: [{ zones: ['carousel'], algorithm: 'standard' }],
+      label: 'CONTROL (standard rule, carousel-only pair)',
+      expectation:
+        'The carousel IS flagged. Same fixture pair as the build above — this is what proves the carousel really changed, so zero diffs there means the rule worked.',
+    },
     {
       key: 'ignore-carousel',
       diffMode: 'noise',
       rules: [{ zones: ['carousel'], algorithm: 'ignore' }],
-      label: 'ignore region on the carousel',
+      label: 'ignore region on the carousel (all four zones changed)',
       expectation:
-        'The carousel change is NOT flagged; the ad, banner and timestamp changes still are. Only the ignored region drops out.',
-    },
-    {
-      key: 'ignore-control',
-      diffMode: 'noise',
-      rules: [{ zones: NOISE_ZONES, algorithm: 'standard' }],
-      label: 'CONTROL (standard rule over the same noise pair)',
-      expectation:
-        'All four noise zones flagged, carousel included — the control that makes the ignore build above meaningful.',
+        'Still flagged, because the ad, banner and timestamp also changed and are not ignored. Included to show why the isolated pair above is the meaningful test.',
     },
     {
       key: 'layout-rule',

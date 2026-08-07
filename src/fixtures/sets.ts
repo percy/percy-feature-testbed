@@ -22,6 +22,7 @@ export type FixtureKind =
   | 'noise'
   | 'noise-signal'
   | 'layout-shift'
+  | 'carousel-only'
   | 'visual-bugs';
 
 /** Snapshot names, derived from these filenames by the Percy static server. */
@@ -38,6 +39,7 @@ const STOREFRONT_VARIANT: Record<FixtureKind, PageVariant> = {
   noise: 'noise',
   'noise-signal': 'noise-signal',
   'layout-shift': 'layout-shift',
+  'carousel-only': 'carousel-only',
   'visual-bugs': 'visual-bugs',
 };
 
