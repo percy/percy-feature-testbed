@@ -31,6 +31,9 @@ export function formatRunSummary(result: RunResult, profile: ResolvedProfile): s
       const link = buildDeepLink(profile, b.buildId);
       assertNoSecret(link);
       lines.push(`  [${b.requirement}] ${b.tier}/${b.projectSlug} — ${b.label}  ->  ${link}`);
+      // The expectation is what makes a rich-DOM build checkable rather than just
+      // something to look at — without it "no diffs" is indistinguishable from a no-op.
+      if (b.expectation) lines.push(`      expect: ${b.expectation}`);
     }
   }
 

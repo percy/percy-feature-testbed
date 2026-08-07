@@ -22,6 +22,21 @@ test('reviewBuild uses Basic auth against /reviews with the build relationship',
   assert.equal((calls[0].body as any).data.relationships.build.data.id, '900');
 });
 
+test('reviewBuild tolerates 409 — an auto-approved baseline is not a failure', async () => {
+  // Orgs whose default branch auto-approves answer 409 "already performed" for every
+  // baseline. Throwing there would break every generator that approves one.
+  const { http } = recorder([errStatus(409, 'approve action is already performed on this build')]);
+  await createBuildApi(makeProfile(), http).reviewBuild('900', 'approve');
+});
+
+test('reviewBuild still throws on a real failure', async () => {
+  const { http } = recorder([errStatus(403, 'forbidden')]);
+  await assert.rejects(
+    () => createBuildApi(makeProfile(), http).reviewBuild('900', 'approve'),
+    /403/,
+  );
+});
+
 test('reviewBuild without BrowserStack creds throws', async () => {
   const { http } = recorder([okJson({})]);
   const api = createBuildApi(makeProfile({ secrets: { userToken: 'u' } }), http);

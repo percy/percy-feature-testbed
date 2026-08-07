@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { orchestrate, selectTiers, selectFeatures, TIERS, type OrchestratorDeps } from './orchestrator';
-import { makeProfile, finalizingRunner, recorder, okJson, FAKE_PROJECT } from './testing/fakes';
+import { makeProfile, finalizingRunner, recorder, okJson, FAKE_PROJECT, makeFakeUpstreamPlaywright } from './testing/fakes';
 import { createProjectApi } from './percy/project-api';
 import { createBuildApi } from './percy/build-api';
 import type { Runner } from './exec';
@@ -11,7 +11,11 @@ function makeDeps(overrides: Partial<OrchestratorDeps> = {}): OrchestratorDeps {
   const { http } = recorder((req) =>
     req.method === 'GET' ? okJson({ data: { attributes: { state: 'finished' } } }) : okJson({}),
   );
-  const profile = makeProfile({ expectedFlags: ['recurring_diff', 'ai', 'auto_approve', 'squash_builds'] });
+  const profile = makeProfile({
+    expectedFlags: ['recurring_diff', 'ai', 'auto_approve', 'squash_builds'],
+    // the AI generator renders the upstream test_bed pages, so it needs a checkout
+    upstream: { seedAccounts: '/up/seed', percyPlaywright: makeFakeUpstreamPlaywright() },
+  });
   return {
     profile,
     projectApi: createProjectApi(profile, http),
@@ -27,7 +31,7 @@ test('selectTiers/selectFeatures honor the --only filter shape', () => {
   assert.deepEqual(selectTiers('paid'), ['paid']);
   assert.equal(selectTiers('ai').length, TIERS.length); // 'ai' is a feature => all tiers
   assert.deepEqual(selectFeatures('regions').map((f) => f.key), ['regions']);
-  assert.equal(selectFeatures('paid').length, 7); // 'paid' is a tier => all features
+  assert.equal(selectFeatures('paid').length, 8); // 'paid' is a tier => all features
 });
 
 test('an explicit --tier wins and scopes to a single tier', () => {

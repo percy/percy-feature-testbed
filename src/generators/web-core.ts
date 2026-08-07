@@ -19,6 +19,8 @@ export async function generateCoreStates(ctx: GeneratorContext): Promise<Generat
     feature: 'core',
     requirement: 'R8',
     label: 'core: approved baseline',
+    expectation:
+      'Storefront and pricing pages render as real content (carousel, banner, price table). Approved, so it is the baseline the next build diffs against.',
     buildId: baseline.id,
     buildUrl: baseline.url,
   });
@@ -34,6 +36,8 @@ export async function generateCoreStates(ctx: GeneratorContext): Promise<Generat
     feature: 'core',
     requirement: 'R8',
     label: 'core: changed (diffs vs baseline)',
+    expectation:
+      'CHANGED review state: the Growth plan price moves $99 -> $129 on the storefront. Pricing page unchanged.',
     buildId: changed.id,
     buildUrl: changed.url,
   });

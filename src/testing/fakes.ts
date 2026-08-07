@@ -2,7 +2,11 @@
  * Shared test doubles: a fake HttpClient recorder and a profile factory. Reused
  * across the Percy REST + generator + orchestrator tests so nothing hits the network.
  */
+import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { HttpClient, HttpRequest, HttpResponse } from '../http';
+import { aiFixtureDir } from '../generators/ai';
 import type { ResolvedProfile } from '../profile/schema';
 import type { ExecResult, Runner } from '../exec';
 import type { GeneratorContext, SeededProject } from '../generators/context';
@@ -23,6 +27,22 @@ export function makeProfile(overrides: Partial<ResolvedProfile> = {}): ResolvedP
     nonceSeed: 'seed',
     ...overrides,
   };
+}
+
+/**
+ * A stand-in `percy_playwright` checkout carrying the `test_bed/ai` fixtures the AI
+ * generator renders. Returns the root path to point a profile's upstream at.
+ */
+export function makeFakeUpstreamPlaywright(): string {
+  const root = mkdtempSync(join(tmpdir(), 'fake-pw-'));
+  for (const suite of ['build-summary', 'ai-details'] as const) {
+    for (const side of ['baseline', 'changed'] as const) {
+      const dir = aiFixtureDir(root, suite, side);
+      mkdirSync(dir, { recursive: true });
+      writeFileSync(join(dir, 'page.html'), `<html><body>${suite}-${side}</body></html>`);
+    }
+  }
+  return root;
 }
 
 export function okJson(body: unknown, status = 200): HttpResponse {
@@ -94,7 +114,7 @@ export function finalizingRunner(): { runner: Runner; calls: RunnerCall[] } {
  * (for PATCH/review assertions).
  */
 export function makeGeneratorContext(
-  opts: { reviewState?: string; nonce?: string } = {},
+  opts: { reviewState?: string; nonce?: string; profile?: Partial<ResolvedProfile> } = {},
 ): { ctx: GeneratorContext; runnerCalls: RunnerCall[]; httpCalls: HttpRequest[] } {
   const { runner, calls: runnerCalls } = finalizingRunner();
   const rec = recorder((req) =>
@@ -102,7 +122,7 @@ export function makeGeneratorContext(
       ? okJson({ data: { attributes: { state: 'finished', 'review-state': opts.reviewState ?? 'unreviewed' } } })
       : okJson({}),
   );
-  const profile = makeProfile();
+  const profile = makeProfile(opts.profile ?? {});
   const ctx: GeneratorContext = {
     profile,
     project: FAKE_PROJECT,

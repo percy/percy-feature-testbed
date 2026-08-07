@@ -5,7 +5,9 @@ baseline / changed / new / removed, visual-git / A-B, recurring diff, AI, region
 approval automation — so QA can log in and inspect each feature in the dashboard.
 
 The flow, proven end-to-end against Percy: **create a project → fetch its token →
-create builds** (via `percy upload` of static images — no browser needed).
+create builds** — `percy snapshot` serves generated fixture pages and renders them in a
+real browser, so builds carry actual DOM (headings, tables, carousel, banner, ad slot)
+rather than flat colour blocks.
 
 ---
 
@@ -62,8 +64,9 @@ Each feature is a one-liner that seeds just that suite's builds in a **single pr
 | `npm run core` | new / changed / unchanged / removed |
 | `npm run ab` | **A/B** variant comparison (visual-git / target-branch) |
 | `npm run recurring-diff` | recurring diff |
-| `npm run ai` | AI review *(smoke build on the upload path — see Limitations)* |
-| `npm run regions` | regions *(smoke build)* |
+| `npm run ai` | AI review over the upstream `test_bed/ai` pages |
+| `npm run regions` | `ignore` + `layout` region rules, each with a `standard` control |
+| `npm run intelli-ignore` | IntelliIgnore + sensitivity sweep, with a `standard` control |
 | `npm run approval` | auto-finalization, supersede, auto-approve |
 | `npm run app` | App Percy *(not yet wired)* |
 | `npm run seed:all` | the full matrix (all tiers × all features) |
@@ -82,11 +85,12 @@ PROFILE=staging TIER=free npm run ai
 
 | Build type | How it's produced |
 |---|---|
-| **baseline / unchanged / changed / new / removed** | `percy upload` of a variant image set; `changed` diffs against an approved `master` baseline |
+| **baseline / unchanged / changed / new / removed** | `percy snapshot` of a generated fixture set; adding/removing a page produces NEW/REMOVED, and `changed` moves the Growth plan price ($99 -> $129) against an approved `master` baseline |
 | **visual-git / A-B** | two branches + `PERCY_TARGET_BRANCH` (variant-A baseline vs variant-B head) |
 | **recurring diff** | two consecutive changed builds vs the master baseline |
 | **approval** | auto-finalization, supersede (same branch + `skipCache`), and auto-approve (sets a branch rule via the project API) |
-| **ai / regions** | build is created, but on the upload path these are **smoke builds** — real AI classification / region config need the SDK/render path (see Limitations) |
+| **ai** | renders the upstream `percy_playwright/test_bed/ai` pages in place (8 baseline/changed pairs + reduce-diff) — real content for the classifier to work on |
+| **regions / intelli-ignore** | region rules (`standard` / `layout` / `ignore` / `intelliignore`) attached per snapshot via a generated Percy config; each rule build is paired with a `standard` **control** over the same fixture pair |
 
 Every capture always sets `PERCY_CLIENT_API_URL` to the target env — otherwise the Percy
 CLI defaults to `api.percy.io` (prod) and builds land there silently.
@@ -101,7 +105,7 @@ seed-testbed --profile <env>
        create project   → POST /api/v1/projects            (Basic auth = BS user:key)
        fetch tokens      → GET  /api/v1/projects/<slug>/tokens   (write_only + read_only)
        for each feature:
-         write variant images → `npx @percy/cli upload <dir>`  (PERCY_TOKEN=write, branch, target-branch)
+         render fixture pages → `npx @percy/cli snapshot <dir> --config <cfg>`
          poll the build to finished (read token), approve the baseline where needed
   └─ print a feature-labeled run summary
 ```
@@ -146,11 +150,21 @@ PERCY_TOKEN="$WT" PERCY_CLIENT_API_URL=https://percy.io/api/v1 PERCY_BRANCH=mast
 
 ## Limitations (known)
 
-- **AI** and **regions** are smoke builds on the `percy upload` path — they create builds
-  but don't exercise the real AI classifier / region config (those need rendered pages via
-  the SDK). Labeled as such in the run summary.
+- **Region-rule outcomes are not yet verified.** The fixtures render, the config is
+  accepted, and `algorithm` demonstrably changes results (the same layout-shift pair gives
+  0 diffs under `standard` and 4 under `layout`). But an `ignore` region on the carousel did
+  **not** reduce the build's diff count, and IntelliIgnore did not measurably suppress the
+  noise zones. `total-comparisons-diff` is per comparison, not per region, so it cannot tell
+  you whether a rule fired — verifying these properly needs per-region comparison data.
+  Treat the current expectations in the run summary as *intended*, not *confirmed*.
+- **AI** builds now use real pages, but AI output quality is not asserted (and the
+  requirements doc exempts AI from determinism).
 - **App Percy (mobile)** isn't wired to a working capture yet (needs BrowserStack app +
   a pre-uploaded `BS_APP_ID`).
+- **Fixtures are a fixed 1280px layout**, so snapshots are pinned to that width. At Percy's
+  default 375px the price table falls outside the render and a real change produces no diff.
+- **`npm run build` output is not runnable** — `tsc` emits extensionless ESM imports, so
+  `dist/main.js` (the declared `bin`) fails to resolve. Everything runs through `tsx`.
 - **Delete:** the public API has no project delete — use `PATCH is-enabled=false` to archive
   via API, or the Project Settings UI for a permanent delete.
 
@@ -159,7 +173,7 @@ PERCY_TOKEN="$WT" PERCY_CLIENT_API_URL=https://percy.io/api/v1 PERCY_BRANCH=mast
 ## Development
 
 ```bash
-npm test            # 54 unit tests (mocked HTTP + shell — nothing hits the network)
+npm test            # 80 unit tests (mocked HTTP + shell — nothing hits the network)
 npm run typecheck   # tsc --noEmit
 npm run build       # emit dist/ (bin: seed-testbed)
 ```

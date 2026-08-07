@@ -24,6 +24,10 @@ export async function generateRecurringDiff(ctx: GeneratorContext): Promise<Gene
       feature: 'recurring-diff',
       requirement: 'R11',
       label: `recurring diff build #${i}`,
+      expectation:
+        i === 1
+          ? 'First occurrence of the price-table change ($99 -> $129) against the baseline — no nudge yet.'
+          : 'The SAME price-table change recurring a second time — the recurring-diff nudge should appear here.',
       buildId: diff.id,
       buildUrl: diff.url,
     });

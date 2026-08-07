@@ -86,6 +86,10 @@ export function createBuildApi(profile: ResolvedProfile, http: HttpClient): Buil
           },
         },
       });
+      // 409 = the action is already applied. On orgs where the default branch
+      // auto-approves, every baseline comes back 409 — treating that as a failure
+      // would break every generator that approves a baseline.
+      if (res.status === 409) return;
       if (!res.ok) throw new Error(`reviewBuild(${action}) failed (${res.status}): ${res.text}`);
     },
 

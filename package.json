@@ -18,7 +18,8 @@
     "app": "tsx src/main.ts --profile ${PROFILE:-canary} --only app-percy --tier ${TIER:-paid}",
     "seed:all": "tsx src/main.ts --profile ${PROFILE:-canary}",
     "test": "find src -name '*.test.ts' -print0 | xargs -0 node --import tsx --test",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "intelli-ignore": "tsx src/main.ts --profile ${PROFILE:-canary} --only intelli-ignore --tier ${TIER:-paid}"
   },
   "engines": {
     "node": ">=18.19"

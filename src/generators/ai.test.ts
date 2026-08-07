@@ -1,13 +1,26 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { generateAI } from './ai';
-import { makeGeneratorContext } from '../testing/fakes';
+import { makeGeneratorContext, makeFakeUpstreamPlaywright } from '../testing/fakes';
 
-test('ai: baseline + changed via percy upload, returns an R12 build', async () => {
-  const { ctx, runnerCalls } = makeGeneratorContext();
+test('ai: renders the upstream test_bed pages, one build per suite', async () => {
+  const percyPlaywright = makeFakeUpstreamPlaywright();
+  const { ctx, runnerCalls } = makeGeneratorContext({
+    profile: { upstream: { seedAccounts: '/up/seed', percyPlaywright } },
+  });
+
   const builds = await generateAI(ctx);
-  assert.equal(builds.length, 1);
-  assert.equal(builds[0].requirement, 'R12');
-  assert.ok(runnerCalls.every((c) => c.args.includes('upload')));
-  assert.match(String(runnerCalls[1].env.PERCY_TARGET_BRANCH), /^master-/);
+
+  // build-summary and ai-details each yield one changed build.
+  assert.equal(builds.length, 2);
+  assert.ok(builds.every((b) => b.requirement === 'R12'));
+  assert.ok(builds.every((b) => b.expectation), 'every build states what QA should see');
+
+  assert.ok(runnerCalls.every((c) => c.args.includes('snapshot')));
+  assert.match(String(runnerCalls[1].env.PERCY_TARGET_BRANCH), /^ai-ai-summary-master-/);
+});
+
+test('ai: a missing upstream checkout fails with an actionable message', async () => {
+  const { ctx } = makeGeneratorContext(); // profile points at /up/pw, which does not exist
+  await assert.rejects(generateAI(ctx), /PERCY_TESTBED_PERCY_PLAYWRIGHT_DIR/);
 });

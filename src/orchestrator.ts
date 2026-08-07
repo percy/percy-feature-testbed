@@ -22,6 +22,7 @@ import { generateVisualGit } from './generators/visual-git';
 import { generateRecurringDiff } from './generators/recurring-diff';
 import { generateAI } from './generators/ai';
 import { generateRegions } from './generators/regions';
+import { generateIntelliIgnore } from './generators/intelli-ignore';
 import { generateAutoFinalization, generateSupersede, generateAutoApprove } from './generators/approval';
 import { generateAppPercy } from './generators/app-percy';
 
@@ -52,6 +53,7 @@ export const FEATURES: readonly FeatureDef[] = [
     requiredFlags: ['auto_approve', 'squash_builds'],
   },
   { key: 'regions', run: generateRegions, requiredFlags: [] },
+  { key: 'intelli-ignore', run: generateIntelliIgnore, requiredFlags: [] },
   { key: 'app-percy', run: generateAppPercy, requiredFlags: [], requiresApp: true },
 ];
 

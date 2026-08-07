@@ -23,7 +23,8 @@ export const FEATURE_KEYS = [
   'recurring-diff', // R11
   'ai', // R12 — AI diff / bug-classification / build summary
   'approval', // R13 — auto-approve + finalization + supersede
-  'regions', // R14
+  'regions', // R14 — ignore / layout region rules, each with a standard control
+  'intelli-ignore', // R14b — the intelliignore rule + sensitivity sweep
   'app-percy', // R15 — App Percy (mobile)
 ] as const;
 
