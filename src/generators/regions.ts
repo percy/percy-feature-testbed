@@ -59,8 +59,12 @@ export async function generateRegions(ctx: GeneratorContext): Promise<GeneratedB
       diffMode: 'layout-shift',
       rules: [{ zones: ['sidebar'], algorithm: 'layout' }],
       label: 'layout rule on a sidebar that moved but did not change',
+      // Live runs give layout=4 diffs and standard=0 on this identical pair, i.e. the
+      // opposite of "layout suppresses movement". Stated as a comparison rather than a
+      // prediction, because the direction is not yet confirmed against Percy's docs —
+      // the rule may be designed to DETECT layout change rather than ignore it.
       expectation:
-        'The sidebar moved 96px down with identical content. Under the layout rule this should not read as a content change.',
+        'The sidebar moved 96px down with identical content. Compare against the standard control below and confirm which way round Percy treats it — on the current fixtures the layout rule flags this pair and standard does not.',
     },
     {
       key: 'layout-control',
@@ -68,7 +72,7 @@ export async function generateRegions(ctx: GeneratorContext): Promise<GeneratedB
       rules: [{ zones: ['sidebar'], algorithm: 'standard' }],
       label: 'CONTROL (standard rule over the same layout shift)',
       expectation:
-        'The same displacement, judged pixel-wise: the sidebar region IS flagged. Contrast with the layout build above.',
+        'The same displacement judged pixel-wise. Read alongside the layout build above — the pair is what tells you how each rule treats pure movement.',
     },
   ];
 
