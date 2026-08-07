@@ -11,9 +11,9 @@ function configsFrom(runnerCalls: { args: string[] }[]): any[] {
   });
 }
 
-test('intelli-ignore: enables the noise classes on the project before capturing', async () => {
-  // They default to off, and while off the per-region configuration is inert — the
-  // rule builds come back identical to the control.
+test('intelli-ignore: enables AI + the noise classes before capturing', async () => {
+  // All default to off. With AI off the rule never runs at all, and the rule builds
+  // come back identical to their standard control.
   const { ctx, httpCalls } = makeGeneratorContext();
   await generateIntelliIgnore(ctx);
 
@@ -21,11 +21,12 @@ test('intelli-ignore: enables the noise classes on the project before capturing'
   assert.ok(patch, 'the project is patched');
   const attrs = (patch.body as any).data.attributes;
   for (const key of [
-    'intelli_ignore_enabled',
-    'ignore_carousels_enabled',
-    'ignore_banners_enabled',
-    'ignore_ads_enabled',
-    'intelli_ignore_dynamic_data_enabled',
+    'ai-enabled', // IntelliIgnore is AI-backed; off means the rule never runs
+    'intelli-ignore-enabled',
+    'ignore-carousels-enabled',
+    'ignore-banners-enabled',
+    'ignore-ads-enabled',
+    'intelli-ignore-dynamic-data-enabled',
   ]) {
     assert.equal(attrs[key], true, `${key} enabled`);
   }

@@ -29,7 +29,19 @@ export type ZoneKey = keyof typeof ZONES;
  * - `noise-signal` — both, so QA sees the rule keep the signal and drop the noise.
  * - `layout-shift` — identical content, moved down the page (for the `layout` rule).
  */
-export type PageVariant = 'baseline' | 'noise' | 'signal' | 'noise-signal' | 'layout-shift';
+export type PageVariant =
+  | 'baseline'
+  | 'noise'
+  | 'signal'
+  | 'noise-signal'
+  | 'layout-shift'
+  /**
+   * Classic visual BUGS, for AI bug classification. Percy marks a region
+   * `visual_quality: 'irregularity'` with a reason, so the diff has to look like
+   * something actually broke — not a benign content edit. Five distinct defects,
+   * one per zone, so a classifier has separate things to name.
+   */
+  | 'visual-bugs';
 
 const CSS = `
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -140,6 +152,7 @@ function adHtml(a: Ad): string {
 export function renderStorefront(variant: PageVariant = 'baseline', nonce = ''): string {
   const noisy = variant === 'noise' || variant === 'noise-signal';
   const changed = variant === 'signal' || variant === 'noise-signal';
+  const bugged = variant === 'visual-bugs';
 
   const car = noisy ? CAROUSEL.b : CAROUSEL.a;
   const ad = noisy ? AD.b : AD.a;
@@ -150,6 +163,8 @@ export function renderStorefront(variant: PageVariant = 'baseline', nonce = ''):
   // layout-shift moves the sidebar down without altering a single character of it,
   // so the `layout` rule has a pure position change to reason about.
   const sideStyle = variant === 'layout-shift' ? ' style="margin-top:96px"' : '';
+
+  if (bugged) return renderBuggedStorefront(nonce);
 
   return `<!doctype html>
 <html lang="en">
@@ -175,6 +190,83 @@ export function renderStorefront(variant: PageVariant = 'baseline', nonce = ''):
       </div>
       <div id="sidebar" class="side"${sideStyle}>
         ${adHtml(ad)}
+      </div>
+    </div>
+  </div>
+  <div class="nonce">${esc(nonce)}</div>
+</body>
+</html>`;
+}
+
+/**
+ * The same storefront with five deliberate, visually obvious defects — one per zone,
+ * each a different failure class so bug classification has distinct things to name:
+ *
+ *   carousel   — text unreadable, near-invisible on its background (contrast)
+ *   banner     — copy overflows its box and is clipped mid-word
+ *   price tbl  — a row's columns misalign and a value overlaps the next cell
+ *   ad slot    — image fails to load, leaving a broken placeholder
+ *   sidebar    — overlaps the main content instead of sitting beside it
+ *
+ * Structure and ids are unchanged from the baseline so the diff is the breakage.
+ */
+function renderBuggedStorefront(nonce = ''): string {
+  const c = CAROUSEL.a;
+  const ban = BANNER.a;
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Storefront</title>
+<style>${CSS}</style>
+</head>
+<body>
+  <div class="page">
+    <div class="top">
+      <div class="brand">PERCY STORE</div>
+      <div id="last-updated" class="stamp">${esc(STAMP.a)}</div>
+    </div>
+
+    <!-- BUG: copy overflows the banner and is clipped mid-word -->
+    <div id="announcement-banner" class="banner"
+         style="background:${ban.bg};color:${ban.fg};border:1px solid ${ban.bd};
+                white-space:nowrap;overflow:hidden;width:340px;text-overflow:clip">
+      ${esc(ban.text)} Please plan your deployments around this window accordingly.
+    </div>
+
+    <div class="layout" style="position:relative">
+      <div class="main">
+        <!-- BUG: carousel copy is near-invisible against its own background -->
+        <div id="promo-carousel" class="carousel" style="background:${c.color}">
+          <h2 style="color:#4b62d6">${esc(c.title)}</h2>
+          <p style="color:#4257c4">${esc(c.body)}</p>
+          <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>
+        </div>
+
+        <!-- BUG: the Growth row misaligns and its price overlaps the next column -->
+        <div id="price-table" class="panel">
+          <h3>Plans &amp; pricing</h3>
+          <table>
+            <tr><th>Plan</th><th>Screenshots / mo</th><th>Price</th></tr>
+            <tr><td>Starter</td><td>5,000</td><td class="num">$29</td></tr>
+            <tr style="position:relative;left:34px">
+              <td>Growth</td>
+              <td style="white-space:nowrap">25,000<span style="position:relative;left:120px;background:#fff">$99</span></td>
+              <td class="num"></td>
+            </tr>
+            <tr><td>Scale</td><td>120,000</td><td class="num">$349</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- BUG: sidebar overlaps the main column instead of sitting beside it -->
+      <div id="sidebar" class="side" style="position:absolute;right:0;top:120px;left:640px">
+        <div id="ad-slot" class="ad">
+          <div class="tag">SPONSORED</div>
+          <!-- BUG: image never loads, leaving a broken placeholder -->
+          <img src="./missing-hero.png" alt="Ship with confidence" width="180" height="90">
+          <p>Catch visual bugs before your users do.</p>
+        </div>
       </div>
     </div>
   </div>

@@ -19,6 +19,11 @@ export async function generateAI(ctx: GeneratorContext): Promise<GeneratedBuild[
   const out: GeneratedBuild[] = [];
   const root = ctx.profile.upstream.percyPlaywright;
 
+  // AI defaults to OFF on a fresh project; without this nothing is classified and
+  // `ai-details.total-diffs-reduced` stays null. Dash-cased — Percy answers 200 and
+  // silently ignores snake_cased keys.
+  await ctx.projectApi.editProject(ctx.project.slug, { 'ai-enabled': true });
+
   const suites: Array<{
     suite: 'build-summary' | 'ai-details';
     key: string;
@@ -40,6 +45,31 @@ export async function generateAI(ctx: GeneratorContext): Promise<GeneratedBuild[
         'The AI details panel should appear on the changed comparison and reduce or explain the diff rather than flag the whole page.',
     },
   ];
+
+  // Bug classification (the third R12 capability). Upstream's fixtures point at
+  // external sites (a random-content joke page and a GitHub Pages demo), which can't
+  // give a testbed a reproducible diff — so this uses the in-repo `visual-bugs`
+  // variant instead: five distinct defects Percy should mark as irregularities.
+  const bugMaster = noncedBranch('ai-bug-classification-master', ctx.nonce);
+  const bugBaseline = await captureWeb(ctx, { diffMode: 'baseline', branch: bugMaster });
+  await ctx.buildApi.waitForBuildFinished(bugBaseline.id, ctx.project.readToken);
+  await ctx.buildApi.reviewBuild(bugBaseline.id, 'approve');
+
+  const bugged = await captureWeb(ctx, {
+    diffMode: 'visual-bugs',
+    branch: noncedBranch('ai-bug-classification', ctx.nonce),
+    targetBranch: bugMaster,
+  });
+  await ctx.buildApi.waitForBuildFinished(bugged.id, ctx.project.readToken);
+  out.push({
+    feature: 'ai',
+    requirement: 'R12',
+    label: 'AI visual bug classification (5 deliberate defects)',
+    expectation:
+      'Regions should be marked as irregularities with a reason, not just "changed": carousel text unreadable on its background, banner copy clipped mid-word, price-table row misaligned with an overlapping value, ad image failing to load, sidebar overlapping the main column.',
+    buildId: bugged.id,
+    buildUrl: bugged.url,
+  });
 
   for (const s of suites) {
     const master = noncedBranch(`ai-${s.key}-master`, ctx.nonce);

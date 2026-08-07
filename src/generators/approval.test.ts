@@ -24,10 +24,11 @@ test('auto-approve: sets the branch rule (PATCH) then builds matching + control'
   const builds = await generateAutoApprove(ctx);
   assert.equal(builds.length, 2);
 
-  // The branch rule was PATCHed with auto_approve_branch_filter (user principal).
+  // The branch rule was PATCHed with the dash-cased key — Percy answers 200 and
+  // silently ignores snake_cased attributes, so casing is load-bearing here.
   const patch = httpCalls.find((c) => c.method === 'PATCH');
   assert.ok(patch, 'expected an editProject PATCH');
-  assert.equal((patch!.body as any).data.attributes.auto_approve_branch_filter, 'auto-approved/*');
+  assert.equal((patch!.body as any).data.attributes['auto-approve-branch-filter'], 'auto-approved/*');
 
   // Matching branch matches the rule prefix; control does not.
   assert.match(String(runnerCalls[0].env.PERCY_BRANCH), /^auto-approved\/x-/);

@@ -58,6 +58,15 @@ export function createProjectApi(profile: ResolvedProfile, http: HttpClient): Pr
       return { id: String(data?.id), slug: String(slug) };
     },
 
+    /**
+     * PATCH project settings.
+     *
+     * Attribute keys MUST be dash-cased (`ignore-carousels-enabled`). Percy answers
+     * **200 for unknown keys and silently ignores them**, so a snake_cased payload
+     * looks like a success while changing nothing — that hid a broken settings write
+     * until a live run showed the setting still false afterwards. We therefore read
+     * the returned attributes back and fail loudly when a value did not stick.
+     */
     async editProject(idOrSlug, attributes) {
       const res = await http({
         method: 'PATCH',
@@ -66,10 +75,23 @@ export function createProjectApi(profile: ResolvedProfile, http: HttpClient): Pr
         body: { data: { attributes } },
       });
       if (!res.ok) throw new Error(`editProject failed (${res.status}): ${res.text}`);
+
+      const applied = (res.body as any)?.data?.attributes;
+      if (!applied) return; // nothing to verify against
+      const ignored = Object.entries(attributes).filter(
+        ([key, value]) => key in applied && applied[key] !== value,
+      );
+      if (ignored.length) {
+        throw new Error(
+          `editProject reported 200 but these settings did not apply: ` +
+            ignored.map(([k, v]) => `${k}=${JSON.stringify(v)}`).join(', ') +
+            '. Percy ignores unknown attribute keys — they must be dash-cased.',
+        );
+      }
     },
 
     async setAutoApprove(idOrSlug, branchFilter) {
-      return projectApi.editProject(idOrSlug, { auto_approve_branch_filter: branchFilter });
+      return projectApi.editProject(idOrSlug, { 'auto-approve-branch-filter': branchFilter });
     },
 
     async fetchProjectToken(idOrSlug, role) {

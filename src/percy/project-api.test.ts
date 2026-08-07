@@ -26,7 +26,7 @@ test('setAutoApprove PATCHes /projects/{slug} with the branch filter (Basic auth
   assert.equal(calls[0].method, 'PATCH');
   assert.equal(calls[0].url, 'https://canary.percy.io/api/v1/projects/org/seed-web');
   assert.match(calls[0].headers?.authorization ?? '', /^Basic /);
-  assert.equal((calls[0].body as any).data.attributes.auto_approve_branch_filter, 'auto/*');
+  assert.equal((calls[0].body as any).data.attributes['auto-approve-branch-filter'], 'auto/*');
 });
 
 test('fetchProjectToken returns the matching-role token (read_only)', async () => {
@@ -47,4 +47,24 @@ test('fetchProjectToken throws (with UI hint) when the role is absent', async ()
     () => createProjectApi(makeProfile(), http).fetchProjectToken('42', 'read_only'),
     /No "read_only" token/,
   );
+});
+
+test('editProject fails loudly when a 200 did not actually apply the setting', async () => {
+  // Percy answers 200 for unknown attribute keys and ignores them. Without this
+  // read-back the caller sees success while the setting stays false — which is how a
+  // broken settings write survived a full live run.
+  const { http } = recorder([
+    okJson({ data: { attributes: { 'ignore-carousels-enabled': false } } }),
+  ]);
+  await assert.rejects(
+    () => createProjectApi(makeProfile(), http).editProject('o/p', { 'ignore-carousels-enabled': true }),
+    /did not apply/,
+  );
+});
+
+test('editProject passes when the setting is reflected back', async () => {
+  const { http } = recorder([
+    okJson({ data: { attributes: { 'ignore-carousels-enabled': true } } }),
+  ]);
+  await createProjectApi(makeProfile(), http).editProject('o/p', { 'ignore-carousels-enabled': true });
 });

@@ -21,7 +21,8 @@ export type FixtureKind =
   | 'removed'
   | 'noise'
   | 'noise-signal'
-  | 'layout-shift';
+  | 'layout-shift'
+  | 'visual-bugs';
 
 /** Snapshot names, derived from these filenames by the Percy static server. */
 export const HOME = 'home.html';
@@ -37,6 +38,7 @@ const STOREFRONT_VARIANT: Record<FixtureKind, PageVariant> = {
   noise: 'noise',
   'noise-signal': 'noise-signal',
   'layout-shift': 'layout-shift',
+  'visual-bugs': 'visual-bugs',
 };
 
 /** Which files a set contains. `new` gains a page; `removed` drops one. */

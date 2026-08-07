@@ -22,25 +22,30 @@ const INTELLI: RegionRule = {
 const CONTROL: RegionRule = { zones: NOISE_ZONES, algorithm: 'standard' };
 
 /**
- * The noise classes are PROJECT settings, and they default to off. Without this the
- * per-region `configuration` is inert: a live run showed the IntelliIgnore builds and
- * the standard control producing byte-identical diff counts, because carousels /
- * banners / ads / dynamic data were never enabled on the project at all.
+ * IntelliIgnore preconditions, all PROJECT settings that default to off.
+ *
+ * `ai-enabled` matters most: IntelliIgnore is AI-backed, so with AI off the rule
+ * never runs at all and every build comes back matching its standard control —
+ * exactly what a live run showed, with `ai-details.total-diffs-reduced` null.
+ *
+ * Keys are dash-cased deliberately. Percy answers 200 and silently ignores
+ * snake_cased keys, so the wrong casing here reads as success and changes nothing.
  */
-export async function enableNoiseClasses(ctx: GeneratorContext): Promise<void> {
+export async function enableIntelliIgnore(ctx: GeneratorContext): Promise<void> {
   await ctx.projectApi.editProject(ctx.project.slug, {
-    intelli_ignore_enabled: true,
-    intelli_ignore_image_diff_ignore_enabled: true,
-    intelli_ignore_dynamic_data_enabled: true, // the timestamp zone
-    ignore_carousels_enabled: true,
-    ignore_banners_enabled: true,
-    ignore_ads_enabled: true,
+    'ai-enabled': true,
+    'intelli-ignore-enabled': true,
+    'intelli-ignore-image-diff-ignore-enabled': true,
+    'intelli-ignore-dynamic-data-enabled': true, // the timestamp zone
+    'ignore-carousels-enabled': true,
+    'ignore-banners-enabled': true,
+    'ignore-ads-enabled': true,
   });
 }
 
 export async function generateIntelliIgnore(ctx: GeneratorContext): Promise<GeneratedBuild[]> {
   const out: GeneratedBuild[] = [];
-  await enableNoiseClasses(ctx);
+  await enableIntelliIgnore(ctx);
   const master = noncedBranch('ii-master', ctx.nonce);
 
   // Shared approved baseline for every scenario below.
