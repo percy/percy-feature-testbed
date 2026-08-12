@@ -36,14 +36,18 @@ test('intelli-ignore: every rule build ships with a standard control', async () 
   const { ctx } = makeGeneratorContext();
   const builds = await generateIntelliIgnore(ctx);
 
-  // 3 scenarios + 2 sensitivity sweep builds.
-  assert.equal(builds.length, 5);
+  // 2 isolated + 3 four-zone scenarios + 2 sensitivity sweep builds.
+  assert.equal(builds.length, 7);
   assert.ok(builds.every((b) => b.requirement === 'R14b'));
   assert.ok(builds.every((b) => b.expectation), 'every build states what QA should see');
 
-  const control = builds.find((b) => b.label.startsWith('CONTROL'));
-  assert.ok(control, 'a standard-rule control exists — "no diffs" alone proves nothing');
-  assert.match(String(control.expectation), /proof that the fixture really changed/);
+  const controls = builds.filter((b) => b.label.startsWith('CONTROL'));
+  assert.equal(controls.length, 2, 'a standard control per rule — "no diffs" alone proves nothing');
+
+  // The decisive test: one zone changed, that zone suppressed, so zero is meaningful.
+  const isolated = builds.find((b) => /ONLY change/.test(b.label));
+  assert.ok(isolated, 'an isolated-change IntelliIgnore build exists');
+  assert.match(String(isolated.expectation), /ZERO diffs/);
 });
 
 test('intelli-ignore: the rule and its control run over the same fixture pair', async () => {
@@ -55,12 +59,19 @@ test('intelli-ignore: the rule and its control run over the same fixture pair', 
   const standard = cfgs.filter((c) => JSON.stringify(c).includes('"algorithm":"standard"'));
 
   assert.ok(intelli.length >= 3);
-  assert.equal(standard.length, 1, 'exactly one control');
+  assert.equal(standard.length, 2, 'a control for the isolated pair and the four-zone pair');
 
-  // Same zones under both rules — that is what makes the comparison fair.
+  // Every control covers the same zones as some rule build — matched by zone set,
+  // not by call index, so adding a scenario cannot silently break the pairing.
   const zonesOf = (c: any) =>
-    c.static.options[0].regions.map((r: any) => r.elementSelector.elementCSS).sort();
-  assert.deepEqual(zonesOf(standard[0]), zonesOf(intelli[0]));
+    c.static.options[0].regions.map((r: any) => r.elementSelector.elementCSS).sort().join(',');
+  const ruleZones = new Set(intelli.map(zonesOf));
+  for (const control of standard) {
+    assert.ok(
+      ruleZones.has(zonesOf(control)),
+      `control over [${zonesOf(control)}] has a matching IntelliIgnore build`,
+    );
+  }
 });
 
 test('intelli-ignore: the sensitivity sweep sends both ends of the knob', async () => {
