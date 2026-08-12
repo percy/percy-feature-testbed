@@ -53,7 +53,9 @@ export const FEATURES: readonly FeatureDef[] = [
     requiredFlags: ['auto_approve', 'squash_builds'],
   },
   { key: 'regions', run: generateRegions, requiredFlags: [] },
-  { key: 'intelli-ignore', run: generateIntelliIgnore, requiredFlags: [] },
+  // Enables ai-enabled on the project, so it must respect the same gates as `ai`:
+  // on the ai_off tier it would switch AI back on and destroy that tier's contrast.
+  { key: 'intelli-ignore', run: generateIntelliIgnore, requiredFlags: ['ai'], skipTiers: ['ai_off'] },
   { key: 'app-percy', run: generateAppPercy, requiredFlags: [], requiresApp: true },
 ];
 

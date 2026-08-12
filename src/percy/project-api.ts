@@ -78,8 +78,12 @@ export function createProjectApi(profile: ResolvedProfile, http: HttpClient): Pr
 
       const applied = (res.body as any)?.data?.attributes;
       if (!applied) return; // nothing to verify against
+
+      // An IGNORED key is absent from the response, not echoed with a stale value —
+      // so a `key in applied` check silently passes exactly the case this guard
+      // exists for. Treat missing and mismatched alike.
       const ignored = Object.entries(attributes).filter(
-        ([key, value]) => key in applied && applied[key] !== value,
+        ([key, value]) => !(key in applied) || applied[key] !== value,
       );
       if (ignored.length) {
         throw new Error(

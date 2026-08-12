@@ -68,3 +68,14 @@ test('editProject passes when the setting is reflected back', async () => {
   ]);
   await createProjectApi(makeProfile(), http).editProject('o/p', { 'ignore-carousels-enabled': true });
 });
+
+test('editProject catches the ignored-key case: absent from the response, not echoed stale', async () => {
+  // The original bug: a snake_cased key is IGNORED, so it never appears in the
+  // response attributes at all. A `key in applied` check passes it silently —
+  // which made the first version of this guard useless for the case it exists for.
+  const { http } = recorder([okJson({ data: { attributes: { 'ai-enabled': false } } })]);
+  await assert.rejects(
+    () => createProjectApi(makeProfile(), http).editProject('o/p', { ai_enabled: true }),
+    /did not apply/,
+  );
+});

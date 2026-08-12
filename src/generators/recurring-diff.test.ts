@@ -10,5 +10,6 @@ test('recurring diff: two consecutive changed builds against the master baseline
   assert.ok(builds.every((b) => b.requirement === 'R11'));
   assert.ok(runnerCalls.every((c) => c.args.includes('snapshot')));
   // baseline (call 0) + 2 diffs (1,2); diffs target master
-  assert.match(String(runnerCalls[1].env.PERCY_TARGET_BRANCH), /^master-/);
+  // Its own baseline branch, not the shared `master` core also uses.
+  assert.match(String(runnerCalls[1].env.PERCY_TARGET_BRANCH), /^rd-master-/);
 });

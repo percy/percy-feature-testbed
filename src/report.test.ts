@@ -31,3 +31,23 @@ test('deep links carry no tokens; assertNoSecret rejects one that does', () => {
   assert.equal(buildDeepLink(profile, '981'), 'https://canary.percy.io/builds/981');
   assert.throws(() => assertNoSecret('https://x/builds/1?token=abc'), /secret/);
 });
+
+test('the summary links to the URL Percy printed, not a synthesized 404', async () => {
+  // `<base>/builds/<id>` is not a dashboard route. Every generator records buildUrl,
+  // and the summary is the deliverable — dead links make it worthless to QA.
+  const profile = makeProfile();
+  const real = 'https://percy.io/9560f98d/web/proj-abc/builds/900';
+  assert.equal(buildDeepLink(profile, '900', real), real);
+
+  const summary = formatRunSummary(
+    {
+      builds: [
+        { feature: 'core', requirement: 'R8', label: 'baseline', tier: 'paid', projectSlug: 'p', buildId: '900', buildUrl: real },
+      ],
+      skipped: [],
+    } as any,
+    profile,
+  );
+  assert.ok(summary.includes(real), 'summary carries the real build URL');
+  assert.ok(!summary.includes(`${profile.baseUrl}/builds/900`), 'no synthesized 404 link');
+});

@@ -1,13 +1,15 @@
 /**
  * Recurring diff (plan Unit 5, R11). An approved master baseline, then two
  * consecutive changed builds against it so the same diff recurs and the
- * recurring-diff nudge fires. Image-based (`percy upload`) path.
+ * recurring-diff nudge fires. Uses its own baseline branch — sharing `master` with
+ * `core` meant core's identical price diff had already occurred once, so the
+ * "first occurrence" build was mislabelled and the nudge could fire a build early.
  */
 import { captureWeb, noncedBranch, type GeneratorContext, type GeneratedBuild } from './context';
 
 export async function generateRecurringDiff(ctx: GeneratorContext): Promise<GeneratedBuild[]> {
   const out: GeneratedBuild[] = [];
-  const master = noncedBranch('master', ctx.nonce);
+  const master = noncedBranch('rd-master', ctx.nonce);
 
   const baseline = await captureWeb(ctx, { diffMode: 'baseline', branch: master });
   await ctx.buildApi.waitForBuildFinished(baseline.id, ctx.project.readToken);

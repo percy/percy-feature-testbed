@@ -6,8 +6,21 @@
 import type { ResolvedProfile } from './profile/schema';
 import type { RunResult } from './orchestrator';
 
-/** Deep-link built from base URL + build id only — never a token/session. */
-export function buildDeepLink(profile: ResolvedProfile, buildId?: string): string {
+/**
+ * Deep-link to a build.
+ *
+ * Prefer the URL Percy itself printed (`<base>/<org>/web/<project>/builds/<id>`);
+ * the synthesized `<base>/builds/<id>` fallback is NOT a real dashboard route and
+ * 404s. Every generator records `buildUrl`, so the fallback is only for builds that
+ * somehow lack one — the run summary is the deliverable, and dead links make it
+ * worthless to QA.
+ */
+export function buildDeepLink(
+  profile: ResolvedProfile,
+  buildId?: string,
+  buildUrl?: string,
+): string {
+  if (buildUrl) return buildUrl;
   return buildId ? `${profile.baseUrl}/builds/${buildId}` : '(no build id)';
 }
 
@@ -28,7 +41,7 @@ export function formatRunSummary(result: RunResult, profile: ResolvedProfile): s
   if (result.builds.length) {
     lines.push('Builds (open each to verify its feature):');
     for (const b of result.builds) {
-      const link = buildDeepLink(profile, b.buildId);
+      const link = buildDeepLink(profile, b.buildId, b.buildUrl);
       assertNoSecret(link);
       lines.push(`  [${b.requirement}] ${b.tier}/${b.projectSlug} — ${b.label}  ->  ${link}`);
       // The expectation is what makes a rich-DOM build checkable rather than just

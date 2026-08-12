@@ -20,7 +20,7 @@ export async function runLocalSeedRake(runner: Runner, tier?: string): Promise<v
   const res = await runner('docker', ['compose', 'exec', '-T', 'api', 'bundle', 'exec', 'rake', task], {
     timeoutMs: 300_000,
   });
-  if (res.code && res.code !== 0) {
+  if (res.code !== 0) {
     throw new Error(`seed rake "${task}" failed (exit ${res.code}): ${res.stderr.slice(-300)}`);
   }
 }
