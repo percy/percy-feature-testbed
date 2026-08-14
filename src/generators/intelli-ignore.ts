@@ -46,6 +46,14 @@ export async function enableIntelliIgnore(ctx: GeneratorContext): Promise<void> 
 export async function generateIntelliIgnore(ctx: GeneratorContext): Promise<GeneratedBuild[]> {
   const out: GeneratedBuild[] = [];
   await enableIntelliIgnore(ctx);
+
+  // The headline scenario: ONE >10,000px page where every case changes at once, so
+  // the suppressed regions and the flagged ones appear in the same comparison and
+  // the difference is visible rather than inferred. A build whose only change is
+  // suppressed reports zero diffs — an absence QA cannot inspect, and one that does
+  // not distinguish "the rule fired" from "nothing was compared".
+  out.push(...(await generateTallAllCases(ctx)));
+
   const master = noncedBranch('ii-master', ctx.nonce);
 
   // Shared approved baseline for every scenario below.
@@ -157,4 +165,39 @@ export async function generateIntelliIgnore(ctx: GeneratorContext): Promise<Gene
   }
 
   return out;
+}
+
+/**
+ * All cases in one tall page: noise zones under IntelliIgnore, signal and layout
+ * left alone, plus an unchanged control section. One comparison, everything visible.
+ */
+export async function generateTallAllCases(ctx: GeneratorContext): Promise<GeneratedBuild[]> {
+  const master = noncedBranch('ii-tall-master', ctx.nonce);
+  const rules: RegionRule[] = [
+    { zones: NOISE_ZONES, algorithm: 'intelliignore', configuration: INTELLI_NOISE_CONFIG },
+  ];
+
+  const baseline = await captureWeb(ctx, { diffMode: 'tall', branch: master, rules });
+  await ctx.buildApi.waitForBuildFinished(baseline.id, ctx.project.readToken);
+  await ctx.buildApi.reviewBuild(baseline.id, 'approve');
+
+  const changed = await captureWeb(ctx, {
+    diffMode: 'tall-changed',
+    branch: noncedBranch('ii-tall', ctx.nonce),
+    targetBranch: master,
+    rules,
+  });
+  await ctx.buildApi.waitForBuildFinished(changed.id, ctx.project.readToken);
+
+  return [
+    {
+      feature: 'intelli-ignore',
+      requirement: 'R14b',
+      label: 'ALL CASES in one >10,000px page (IntelliIgnore on the noise zones)',
+      expectation:
+        'Scroll the single comparison. Sections 1-4 (banner, carousel, ad, timestamp) all changed and should be SUPPRESSED. Section 5 (price $99 -> $129) and section 7 (text overflowing its box) changed and should still be FLAGGED. Section 6 moved 96px. Section 8 is identical in both builds — any diff there is noise in the harness itself. Seeing suppressed and flagged regions side by side is the point: a build with nothing in it proves nothing.',
+      buildId: changed.id,
+      buildUrl: changed.url,
+    },
+  ];
 }

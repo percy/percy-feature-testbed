@@ -18,7 +18,7 @@ import type { Runner } from '../exec';
 import { parseFinalizedBuild } from '../exec';
 import type { ProjectApi } from '../percy/project-api';
 import type { BuildApi } from '../percy/build-api';
-import { writeFixtureSet, type FixtureKind } from '../fixtures/sets';
+import { writeFixtureSet, TALL, HOME, type FixtureKind } from '../fixtures/sets';
 import { buildPercyConfig, type RegionRule } from '../fixtures/rules';
 
 export interface SeededProject {
@@ -85,6 +85,7 @@ export async function captureWeb(
 ): Promise<{ id: string; url?: string }> {
   const { profile, project, runner, nonce } = ctx;
   const dir = mkdtempSync(join(tmpdir(), 'percy-testbed-'));
+  const kind = opts.diffMode ?? 'baseline';
 
   if (opts.sourceDir) {
     if (!existsSync(opts.sourceDir)) {
@@ -95,11 +96,12 @@ export async function captureWeb(
     }
     cpSync(opts.sourceDir, dir, { recursive: true });
   } else {
-    writeFixtureSet(dir, opts.diffMode ?? 'baseline', nonce);
+    writeFixtureSet(dir, kind, nonce);
   }
 
   const configPath = join(dir, 'percy.config.json');
-  writeFileSync(configPath, JSON.stringify(buildPercyConfig(opts.rules ?? []), null, 2));
+  const zonePage = kind === 'tall' || kind === 'tall-changed' ? TALL : HOME;
+  writeFileSync(configPath, JSON.stringify(buildPercyConfig(opts.rules ?? [], zonePage), null, 2));
 
   const env: NodeJS.ProcessEnv = {
     PERCY_TOKEN: project.writeToken,

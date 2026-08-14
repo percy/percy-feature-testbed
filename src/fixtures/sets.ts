@@ -8,6 +8,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderStorefront, renderPricing, renderAbout, type PageVariant } from './pages';
+import { renderTallPage } from './tall-page';
 
 /**
  * The review-state sets (`baseline`…`removed`) mirror the old image path, so the core
@@ -23,12 +24,16 @@ export type FixtureKind =
   | 'noise-signal'
   | 'layout-shift'
   | 'carousel-only'
-  | 'visual-bugs';
+  | 'visual-bugs'
+  /** One >10,000px page carrying every case, so a single build shows them together. */
+  | 'tall'
+  | 'tall-changed';
 
 /** Snapshot names, derived from these filenames by the Percy static server. */
 export const HOME = 'home.html';
 export const PRICING = 'pricing.html';
 export const ABOUT = 'about.html';
+export const TALL = 'tall.html';
 
 const STOREFRONT_VARIANT: Record<FixtureKind, PageVariant> = {
   baseline: 'baseline',
@@ -41,10 +46,13 @@ const STOREFRONT_VARIANT: Record<FixtureKind, PageVariant> = {
   'layout-shift': 'layout-shift',
   'carousel-only': 'carousel-only',
   'visual-bugs': 'visual-bugs',
+  tall: 'baseline', // the tall page renders itself; storefront variant is unused
+  'tall-changed': 'baseline',
 };
 
 /** Which files a set contains. `new` gains a page; `removed` drops one. */
 function filesFor(kind: FixtureKind): string[] {
+  if (kind === 'tall' || kind === 'tall-changed') return [TALL];
   if (kind === 'new') return [HOME, PRICING, ABOUT];
   if (kind === 'removed') return [HOME];
   return [HOME, PRICING];
@@ -62,9 +70,10 @@ export function writeFixtureSet(dir: string, kind: FixtureKind, nonce = ''): str
 
   for (const file of filesFor(kind)) {
     const html =
-      file === HOME ? renderStorefront(variant, nonce)
-        : file === PRICING ? renderPricing(nonce)
-          : renderAbout(nonce);
+      file === TALL ? renderTallPage(kind === 'tall-changed' ? 'changed' : 'baseline', nonce)
+        : file === HOME ? renderStorefront(variant, nonce)
+          : file === PRICING ? renderPricing(nonce)
+            : renderAbout(nonce);
     const path = join(dir, file);
     writeFileSync(path, html);
     written.push(path);

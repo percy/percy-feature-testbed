@@ -36,8 +36,15 @@ test('intelli-ignore: every rule build ships with a standard control', async () 
   const { ctx } = makeGeneratorContext();
   const builds = await generateIntelliIgnore(ctx);
 
-  // 2 isolated + 3 four-zone scenarios + 2 sensitivity sweep builds.
-  assert.equal(builds.length, 7);
+  // 1 tall all-cases + 2 isolated + 3 four-zone scenarios + 2 sensitivity sweep.
+  assert.equal(builds.length, 8);
+
+  // The all-cases build is what QA actually inspects: suppressed and flagged regions
+  // in one comparison, rather than a build with nothing in it.
+  const allCases = builds.find((b) => /ALL CASES/.test(b.label));
+  assert.ok(allCases, 'a single-page all-cases build exists');
+  assert.match(String(allCases.expectation), /SUPPRESSED/);
+  assert.match(String(allCases.expectation), /FLAGGED/);
   assert.ok(builds.every((b) => b.requirement === 'R14b'));
   assert.ok(builds.every((b) => b.expectation), 'every build states what QA should see');
 
@@ -87,13 +94,21 @@ test('intelli-ignore: the sensitivity sweep sends both ends of the knob', async 
   assert.ok(sensitivities.includes(4), 'sweeps the high end');
 });
 
-test('intelli-ignore: one approved baseline serves every scenario', async () => {
+test('intelli-ignore: baselines are shared, not one per scenario', async () => {
   const { ctx, runnerCalls } = makeGeneratorContext();
   await generateIntelliIgnore(ctx);
 
+  // Two baselines: one for the tall all-cases page, one shared by every short-page
+  // scenario — not one per scenario.
   const baselines = runnerCalls.filter((c) => !c.env.PERCY_TARGET_BRANCH);
-  assert.equal(baselines.length, 1, 'no redundant baseline per scenario');
+  assert.equal(baselines.length, 2, 'no redundant baseline per scenario');
 
+  const baselineBranches = baselines.map((c) => c.env.PERCY_BRANCH);
   const heads = runnerCalls.filter((c) => c.env.PERCY_TARGET_BRANCH);
-  assert.ok(heads.every((c) => c.env.PERCY_TARGET_BRANCH === baselines[0].env.PERCY_BRANCH));
+  for (const h of heads) {
+    assert.ok(
+      baselineBranches.includes(h.env.PERCY_TARGET_BRANCH),
+      `${h.env.PERCY_BRANCH} targets a baseline this run created`,
+    );
+  }
 });

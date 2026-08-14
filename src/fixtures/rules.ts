@@ -8,7 +8,7 @@
  * We write these into a generated Percy config consumed via `percy snapshot --config`.
  */
 import { ZONES, type ZoneKey } from './pages';
-import { HOME } from './sets';
+import { HOME, TALL } from './sets';
 
 /** The fixtures are authored at this width; snapshots are pinned to it. */
 export const FIXTURE_WIDTH = 1280;
@@ -51,7 +51,11 @@ interface PercyRegion {
  * page — the only page carrying the zones — so the other snapshots stay plain
  * comparisons and act as a sanity check that the build itself worked.
  */
-export function buildPercyConfig(rules: RegionRule[]): Record<string, unknown> {
+export function buildPercyConfig(
+  rules: RegionRule[],
+  /** which page carries the zones — the storefront by default, or the tall all-cases page */
+  page: typeof HOME | typeof TALL = HOME,
+): Record<string, unknown> {
   const regions: PercyRegion[] = [];
   for (const rule of rules) {
     for (const zone of rule.zones) {
@@ -69,7 +73,7 @@ export function buildPercyConfig(rules: RegionRule[]): Record<string, unknown> {
   // keeps region selectors mapping to exactly what QA sees.
   const config: Record<string, unknown> = { version: 2, snapshot: { widths: [FIXTURE_WIDTH] } };
   if (regions.length) {
-    config.static = { options: [{ include: `/${HOME}`, regions }] };
+    config.static = { options: [{ include: `/${page}`, regions }] };
   }
   return config;
 }
