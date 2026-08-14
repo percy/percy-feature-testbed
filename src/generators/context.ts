@@ -19,7 +19,7 @@ import { parseFinalizedBuild } from '../exec';
 import type { ProjectApi } from '../percy/project-api';
 import type { BuildApi } from '../percy/build-api';
 import { writeFixtureSet, TALL, HOME, type FixtureKind } from '../fixtures/sets';
-import { buildPercyConfig, type RegionRule } from '../fixtures/rules';
+import { buildPercyConfig, buildMatrixConfig, type RegionRule } from '../fixtures/rules';
 
 export interface SeededProject {
   id: string;
@@ -100,8 +100,11 @@ export async function captureWeb(
   }
 
   const configPath = join(dir, 'percy.config.json');
+  const isMatrix = kind === 'matrix' || kind === 'matrix-changed';
   const zonePage = kind === 'tall' || kind === 'tall-changed' ? TALL : HOME;
-  writeFileSync(configPath, JSON.stringify(buildPercyConfig(opts.rules ?? [], zonePage), null, 2));
+  // The matrix needs a different rule per page, which the single-page helper cannot express.
+  const config = isMatrix ? buildMatrixConfig() : buildPercyConfig(opts.rules ?? [], zonePage);
+  writeFileSync(configPath, JSON.stringify(config, null, 2));
 
   const env: NodeJS.ProcessEnv = {
     PERCY_TOKEN: project.writeToken,

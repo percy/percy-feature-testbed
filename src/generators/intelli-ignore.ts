@@ -12,6 +12,7 @@
  */
 import { captureWeb, noncedBranch, type GeneratorContext, type GeneratedBuild } from './context';
 import { NOISE_ZONES, INTELLI_NOISE_CONFIG, type RegionRule } from '../fixtures/rules';
+import { EXPECTED_DIFF_WORKING, EXPECTED_DIFF_NOOP } from '../fixtures/matrix';
 
 const INTELLI: RegionRule = {
   zones: NOISE_ZONES,
@@ -52,6 +53,7 @@ export async function generateIntelliIgnore(ctx: GeneratorContext): Promise<Gene
   // the difference is visible rather than inferred. A build whose only change is
   // suppressed reports zero diffs — an absence QA cannot inspect, and one that does
   // not distinguish "the rule fired" from "nothing was compared".
+  out.push(...(await generateMatrix(ctx)));
   out.push(...(await generateTallAllCases(ctx)));
 
   const master = noncedBranch('ii-master', ctx.nonce);
@@ -196,6 +198,43 @@ export async function generateTallAllCases(ctx: GeneratorContext): Promise<Gener
       label: 'ALL CASES in one >10,000px page (IntelliIgnore on the noise zones)',
       expectation:
         'Scroll the single comparison. Sections 1-4 (banner, carousel, ad, timestamp) all changed and should be SUPPRESSED. Section 5 (price $99 -> $129) and section 7 (text overflowing its box) changed and should still be FLAGGED. Section 6 moved 96px. Section 8 is identical in both builds — any diff there is noise in the harness itself. Seeing suppressed and flagged regions side by side is the point: a build with nothing in it proves nothing.',
+      buildId: changed.id,
+      buildUrl: changed.url,
+    },
+  ];
+}
+
+/**
+ * The falsifiable test. One case per page, so the build's diff count is arithmetic:
+ * each page contributes 0 or 4. Working IntelliIgnore totals 8; a no-op totals 12.
+ *
+ * Returns the observed count in the expectation so the result is on the record
+ * rather than something a reader has to go and look up.
+ */
+export async function generateMatrix(ctx: GeneratorContext): Promise<GeneratedBuild[]> {
+  const master = noncedBranch('ii-matrix-master', ctx.nonce);
+
+  const baseline = await captureWeb(ctx, { diffMode: 'matrix', branch: master });
+  await ctx.buildApi.waitForBuildFinished(baseline.id, ctx.project.readToken);
+  await ctx.buildApi.reviewBuild(baseline.id, 'approve');
+
+  const changed = await captureWeb(ctx, {
+    diffMode: 'matrix-changed',
+    branch: noncedBranch('ii-matrix', ctx.nonce),
+    targetBranch: master,
+  });
+  const state = await ctx.buildApi.waitForBuildFinished(changed.id, ctx.project.readToken);
+
+  return [
+    {
+      feature: 'intelli-ignore',
+      requirement: 'R14b',
+      label: 'MATRIX — one case per page, so the diff count is attributable',
+      expectation:
+        `Page A (carousel, IntelliIgnore) should contribute 0; page B (same carousel change, standard rule) 4; ` +
+        `page C (price change, no rule) 4; page D (unchanged) 0. ` +
+        `So ${EXPECTED_DIFF_WORKING} total means IntelliIgnore suppressed, ${EXPECTED_DIFF_NOOP} means it did not. ` +
+        `Observed: ${state.totalComparisons ?? '?'} comparisons.`,
       buildId: changed.id,
       buildUrl: changed.url,
     },

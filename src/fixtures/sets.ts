@@ -9,6 +9,7 @@ import { writeFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderStorefront, renderPricing, renderAbout, type PageVariant } from './pages';
 import { renderTallPage } from './tall-page';
+import { renderMatrixPage, MATRIX_PAGES } from './matrix';
 
 /**
  * The review-state sets (`baseline`…`removed`) mirror the old image path, so the core
@@ -27,7 +28,10 @@ export type FixtureKind =
   | 'visual-bugs'
   /** One >10,000px page carrying every case, so a single build shows them together. */
   | 'tall'
-  | 'tall-changed';
+  | 'tall-changed'
+  /** One case per page, so each page's diff contribution is attributable. */
+  | 'matrix'
+  | 'matrix-changed';
 
 /** Snapshot names, derived from these filenames by the Percy static server. */
 export const HOME = 'home.html';
@@ -48,10 +52,13 @@ const STOREFRONT_VARIANT: Record<FixtureKind, PageVariant> = {
   'visual-bugs': 'visual-bugs',
   tall: 'baseline', // the tall page renders itself; storefront variant is unused
   'tall-changed': 'baseline',
+  matrix: 'baseline',
+  'matrix-changed': 'baseline',
 };
 
 /** Which files a set contains. `new` gains a page; `removed` drops one. */
 function filesFor(kind: FixtureKind): string[] {
+  if (kind === 'matrix' || kind === 'matrix-changed') return Object.values(MATRIX_PAGES);
   if (kind === 'tall' || kind === 'tall-changed') return [TALL];
   if (kind === 'new') return [HOME, PRICING, ABOUT];
   if (kind === 'removed') return [HOME];
@@ -69,8 +76,10 @@ export function writeFixtureSet(dir: string, kind: FixtureKind, nonce = ''): str
   const written: string[] = [];
 
   for (const file of filesFor(kind)) {
+    const isMatrix = kind === 'matrix' || kind === 'matrix-changed';
     const html =
-      file === TALL ? renderTallPage(kind === 'tall-changed' ? 'changed' : 'baseline', nonce)
+      isMatrix ? renderMatrixPage(file, kind === 'matrix-changed', nonce)
+      : file === TALL ? renderTallPage(kind === 'tall-changed' ? 'changed' : 'baseline', nonce)
         : file === HOME ? renderStorefront(variant, nonce)
           : file === PRICING ? renderPricing(nonce)
             : renderAbout(nonce);

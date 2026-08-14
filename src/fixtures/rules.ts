@@ -9,6 +9,7 @@
  */
 import { ZONES, type ZoneKey } from './pages';
 import { HOME, TALL } from './sets';
+import { MATRIX_PAGES } from './matrix';
 
 /** The fixtures are authored at this width; snapshots are pinned to it. */
 export const FIXTURE_WIDTH = 1280;
@@ -76,4 +77,32 @@ export function buildPercyConfig(
     config.static = { options: [{ include: `/${page}`, regions }] };
   }
   return config;
+}
+
+/**
+ * Config for the matrix build: a DIFFERENT rule per page, so each page's diff
+ * contribution is attributable. `static.options` takes an array of filter+capture
+ * entries, one per page.
+ */
+export function buildMatrixConfig(): Record<string, unknown> {
+  const carousel = { elementSelector: { elementCSS: ZONES.carousel } };
+  return {
+    version: 2,
+    snapshot: { widths: [FIXTURE_WIDTH] },
+    static: {
+      options: [
+        {
+          include: `/${MATRIX_PAGES.noiseIntelli}`,
+          regions: [
+            { ...carousel, algorithm: 'intelliignore', configuration: INTELLI_NOISE_CONFIG },
+          ],
+        },
+        {
+          include: `/${MATRIX_PAGES.noiseStandard}`,
+          regions: [{ ...carousel, algorithm: 'standard' }],
+        },
+        // signal and unchanged pages carry no rule — plain comparisons.
+      ],
+    },
+  };
 }

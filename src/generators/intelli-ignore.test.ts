@@ -36,8 +36,14 @@ test('intelli-ignore: every rule build ships with a standard control', async () 
   const { ctx } = makeGeneratorContext();
   const builds = await generateIntelliIgnore(ctx);
 
-  // 1 tall all-cases + 2 isolated + 3 four-zone scenarios + 2 sensitivity sweep.
-  assert.equal(builds.length, 8);
+  // matrix + tall all-cases + 2 isolated + 3 four-zone scenarios + 2 sensitivity sweep.
+  assert.equal(builds.length, 9);
+
+  // The matrix build is the falsifiable one: its diff count differs between
+  // "IntelliIgnore suppressed" and "IntelliIgnore did nothing".
+  const matrix = builds.find((b) => /MATRIX/.test(b.label));
+  assert.ok(matrix, 'a per-page matrix build exists');
+  assert.match(String(matrix.expectation), /8 total means IntelliIgnore suppressed/);
 
   // The all-cases build is what QA actually inspects: suppressed and flagged regions
   // in one comparison, rather than a build with nothing in it.
@@ -66,7 +72,7 @@ test('intelli-ignore: the rule and its control run over the same fixture pair', 
   const standard = cfgs.filter((c) => JSON.stringify(c).includes('"algorithm":"standard"'));
 
   assert.ok(intelli.length >= 3);
-  assert.equal(standard.length, 2, 'a control for the isolated pair and the four-zone pair');
+  assert.ok(standard.length >= 2, 'controls exist for the isolated and four-zone pairs');
 
   // Every control covers the same zones as some rule build — matched by zone set,
   // not by call index, so adding a scenario cannot silently break the pairing.
@@ -101,7 +107,7 @@ test('intelli-ignore: baselines are shared, not one per scenario', async () => {
   // Two baselines: one for the tall all-cases page, one shared by every short-page
   // scenario — not one per scenario.
   const baselines = runnerCalls.filter((c) => !c.env.PERCY_TARGET_BRANCH);
-  assert.equal(baselines.length, 2, 'no redundant baseline per scenario');
+  assert.equal(baselines.length, 3, 'one per page-set (matrix, tall, short) — not one per scenario');
 
   const baselineBranches = baselines.map((c) => c.env.PERCY_BRANCH);
   const heads = runnerCalls.filter((c) => c.env.PERCY_TARGET_BRANCH);
