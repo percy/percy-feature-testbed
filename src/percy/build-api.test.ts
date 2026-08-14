@@ -74,3 +74,32 @@ test('getBuildState surfaces an auth failure (write_only cannot read builds)', a
     /getBuildState failed \(401\)/,
   );
 });
+
+test('waitForBuildFinished rides out transient poll failures', async () => {
+  // A single 502 mid-poll used to abort the feature after the builds were paid for.
+  const states = [null, 'processing', 'finished'];
+  let n = 0;
+  const { http } = recorder(() => {
+    const s = states[Math.min(n++, states.length - 1)];
+    return s === null ? errStatus(502, 'bad gateway') : okJson({ data: { attributes: { state: s } } });
+  });
+  const st = await createBuildApi(makeProfile(), http).waitForBuildFinished('900', 'r', {
+    sleep: async () => {},
+    now: () => 0,
+  });
+  assert.equal(st.state, 'finished');
+});
+
+test('waitForBuildFinished surfaces the last error when it times out mid-failure', async () => {
+  const { http } = recorder([errStatus(502, 'bad gateway')]);
+  let t = 0;
+  await assert.rejects(
+    () =>
+      createBuildApi(makeProfile(), http).waitForBuildFinished('900', 'r', {
+        timeoutMs: 10,
+        sleep: async () => {},
+        now: () => (t += 20),
+      }),
+    /last error: .*502/,
+  );
+});

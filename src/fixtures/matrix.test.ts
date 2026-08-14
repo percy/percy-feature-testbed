@@ -5,6 +5,7 @@ import {
   MATRIX_PAGES,
   EXPECTED_DIFF_WORKING,
   EXPECTED_DIFF_NOOP,
+  MATRIX_PAGE_MIN_HEIGHT,
 } from './matrix';
 import { buildMatrixConfig } from './rules';
 import { ZONES } from './pages';
@@ -52,4 +53,25 @@ test('config applies intelliignore to page A and standard to page B, nothing to 
     byPage[`/${MATRIX_PAGES.noiseIntelli}`].elementSelector.elementCSS,
     ZONES.carousel,
   );
+});
+
+test('every matrix page clears the >10,000px target', () => {
+  assert.ok(
+    MATRIX_PAGE_MIN_HEIGHT > 10_000,
+    `nominal height ${MATRIX_PAGE_MIN_HEIGHT}px must exceed 10,000px`,
+  );
+  for (const file of Object.values(MATRIX_PAGES)) {
+    assert.ok(renderMatrixPage(file, false).includes('class="filler"'), `${file} is padded out`);
+  }
+});
+
+test('the filler is identical across variants, so only the case zone can diff', () => {
+  const fillerOf = (html: string) => html.match(/<section class="filler">[\s\S]*$/)?.[0];
+  for (const file of Object.values(MATRIX_PAGES)) {
+    assert.equal(
+      fillerOf(renderMatrixPage(file, false, 'n')),
+      fillerOf(renderMatrixPage(file, true, 'n')),
+      `${file} filler unchanged between builds`,
+    );
+  }
 });

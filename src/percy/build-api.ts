@@ -110,22 +110,40 @@ export function createBuildApi(profile: ResolvedProfile, http: HttpClient): Buil
     },
 
     async waitForBuildFinished(buildId, readToken, opts = {}) {
-      const timeoutMs = opts.timeoutMs ?? 300_000;
+      // 15 minutes. The old 300s default was too short for the >10,000px fixtures:
+      // a 4-page tall build measured 396s of Percy processing and aborted a live run
+      // after the builds had already been paid for.
+      const timeoutMs = opts.timeoutMs ?? 900_000;
       const intervalMs = opts.intervalMs ?? 2_000;
       const sleep = opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
       const now = opts.now ?? (() => Date.now());
       const start = now();
+      let lastError: unknown;
 
       for (;;) {
-        const st = await buildApi.getBuildState(buildId, readToken);
-        if (st.state === FINISHED) return st;
-        if (st.state && FAILED_STATES.has(st.state)) {
-          throw new Error(`build ${buildId} reached terminal state "${st.state}" before finishing`);
+        // A single 502/429/socket hiccup mid-poll used to abort the whole feature.
+        // Transient failures are retried within the timeout budget; only a terminal
+        // build state fails fast.
+        let st: BuildState | undefined;
+        try {
+          st = await buildApi.getBuildState(buildId, readToken);
+          lastError = undefined;
+        } catch (err) {
+          lastError = err;
         }
+
+        if (st) {
+          if (st.state === FINISHED) return st;
+          if (st.state && FAILED_STATES.has(st.state)) {
+            throw new Error(`build ${buildId} reached terminal state "${st.state}" before finishing`);
+          }
+        }
+
         if (now() - start >= timeoutMs) {
-          throw new Error(
-            `timed out after ${timeoutMs}ms waiting for build ${buildId} (last state: ${st.state ?? 'unknown'})`,
-          );
+          const detail = lastError
+            ? `last error: ${(lastError as Error).message}`
+            : `last state: ${st?.state ?? 'unknown'}`;
+          throw new Error(`timed out after ${timeoutMs}ms waiting for build ${buildId} (${detail})`);
         }
         await sleep(intervalMs);
       }

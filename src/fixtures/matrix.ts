@@ -7,6 +7,11 @@
  * arithmetic: each page contributes 0 or BROWSERS_PER_SNAPSHOT, and the total says
  * exactly which pages diffed.
  *
+ * Each page is also >10,000px tall (review feedback on PER-10456): a big DOM per page,
+ * so the build is inspectable, while one case per page keeps the count attributable.
+ * The filler is byte-identical between the baseline and changed variants, so only the
+ * case zone can contribute a diff.
+ *
  * Four pages, each changing by the same amount, differing only in the rule applied:
  *
  *   a-noise-intelli   carousel slide changes, `intelliignore` on it  -> expect 0
@@ -25,6 +30,12 @@ export const MATRIX_PAGES = {
   signal: 'c-signal.html',
   unchanged: 'd-unchanged.html',
 } as const;
+
+const FILLER_SECTION_HEIGHT = 1400;
+const FILLER_SECTIONS = 8;
+
+/** Nominal page height, asserted in tests so the >10,000px target cannot regress. */
+export const MATRIX_PAGE_MIN_HEIGHT = FILLER_SECTIONS * FILLER_SECTION_HEIGHT;
 
 /** Percy runs one comparison per browser at the pinned width. */
 export const BROWSERS_PER_SNAPSHOT = 4;
@@ -49,10 +60,38 @@ const CSS = `
   th { color: #6b7a89; font-size: 13px; text-transform: uppercase; letter-spacing: .4px; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
   .nonce { position: fixed; top: 3px; left: 3px; font: 11px/11px monospace; color: #cdd4db; }
+  section.filler { min-height: ${FILLER_SECTION_HEIGHT}px; padding: 40px 0; border-top: 1px solid #e2e8ef; }
+  section.filler h4 { font-size: 22px; margin-bottom: 10px; }
+  section.filler p { font-size: 16px; color: #5d6b7a; max-width: 820px; }
 `;
 
 function esc(s: string): string {
   return s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] as string);
+}
+
+/**
+ * Static filler that makes the page tall. Identical in both variants and on every
+ * page, so it can never contribute a diff — the case zone is the only moving part.
+ */
+function filler(): string {
+  const topics = [
+    ['Getting started', 'Install the SDK, add a snapshot call, and open your first build.'],
+    ['Baselines', 'Every build is compared against an approved baseline on the target branch.'],
+    ['Review states', 'Snapshots come back as new, changed, unchanged or removed.'],
+    ['Regions', 'Scope a rule to part of a page by CSS selector, XPath or bounding box.'],
+    ['Parallelism', 'Shard a suite across machines and Percy stitches the build back together.'],
+    ['Integrations', 'Status checks on pull requests, with review state carried across.'],
+    ['Retention', 'Builds age out after the retention window for your plan.'],
+    ['Support', 'Reach the team from the dashboard, or read the docs.'],
+  ];
+  return topics
+    .map(
+      ([h, p]) => `    <section class="filler">
+      <h4>${esc(h)}</h4>
+      <p>${esc(p)}</p>
+    </section>`,
+    )
+    .join('\n');
 }
 
 function shell(tag: string, body: string, nonce: string): string {
@@ -67,6 +106,7 @@ function shell(tag: string, body: string, nonce: string): string {
   <div class="page">
     <div class="tag">${esc(tag)}</div>
 ${body}
+${filler()}
   </div>
   <div class="nonce">${esc(nonce)}</div>
 </body>
