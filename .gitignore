@@ -13,3 +13,6 @@ docs/phase0-validation-notes.md
 tmp/
 .env
 .env.*
+
+# local live-validation harness (prod runs, never committed)
+live-rich.ts

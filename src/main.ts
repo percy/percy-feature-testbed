@@ -4,8 +4,9 @@
  * library stays free of top-level side effects and is safe to import in tests.
  */
 import { run, UsageError, usage } from './cli';
+import { realDispatch } from './run';
 
-run(process.argv.slice(2)).catch((err) => {
+run(process.argv.slice(2), { dispatch: realDispatch }).catch((err) => {
   if (err instanceof UsageError) {
     console.error(`error: ${err.message}`);
     console.error(usage());
